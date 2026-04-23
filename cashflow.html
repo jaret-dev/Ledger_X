@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Cash Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  /* PROJECTION CHART */
+  .projection{background:var(--card);border:1px solid var(--line);padding:24px;margin-bottom:32px}
+  .projection-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px}
+  .projection-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+  .projection-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+  .chart-wrap{position:relative;height:180px;margin:20px 0 10px}
+  .chart-svg{width:100%;height:100%;overflow:visible}
+  .chart-legend{display:flex;gap:20px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .chart-legend span{display:flex;align-items:center;gap:6px}
+  .chart-legend .dot{width:8px;height:8px;border-radius:0}
+
+  /* CALENDAR */
+  .cal-wrap{background:var(--card);border:1px solid var(--line);margin-bottom:32px}
+  .cal-month{border-bottom:1px solid var(--line)}
+  .cal-month:last-child{border-bottom:none}
+  .cal-month-head{padding:16px 20px;background:var(--bg-2);display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line)}
+  .cal-month-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.5px}
+  .cal-month-head .summary{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);display:flex;gap:16px}
+  .cal-month-head .summary strong{color:var(--ink);font-weight:500}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);padding:1px}
+  .cal-dow{background:var(--bg-2);padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);text-align:center}
+  .cal-day{background:var(--card);min-height:88px;padding:6px 8px;display:flex;flex-direction:column;gap:3px;position:relative;font-size:11px}
+  .cal-day.muted{background:var(--bg-2);opacity:.5}
+  .cal-day.today{background:#fff6e8;outline:1px solid var(--accent);outline-offset:-1px;z-index:1}
+  .cal-day .dnum{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);font-weight:600;margin-bottom:2px}
+  .cal-day.today .dnum{color:var(--accent)}
+  .cal-event{font-size:10px;padding:2px 4px;border-left:2px solid;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-event.debt{border-color:var(--accent-2);background:rgba(31,77,58,0.08);color:var(--accent-2)}
+  .cal-event.bill{border-color:var(--accent-3);background:rgba(139,111,47,0.08);color:var(--accent-3)}
+  .cal-event.budget{border-color:var(--accent-4);background:rgba(61,90,122,0.08);color:var(--accent-4)}
+  .cal-event.adhoc{border-color:var(--accent);background:rgba(200,73,28,0.08);color:var(--accent)}
+  .cal-event.income{border-color:var(--success);background:rgba(45,90,61,0.08);color:var(--success);font-weight:600}
+
+  /* SUMMARY RAIL */
+  .rail{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+  .rail-stat{background:var(--card);padding:16px 20px}
+  .rail-stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:6px}
+  .rail-stat .val{font-family:'Fraunces',serif;font-size:26px;font-weight:300;letter-spacing:-0.5px;line-height:1}
+  .rail-stat .sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:6px}
+  .rail-stat.pos .val{color:var(--success)}
+  .rail-stat.neg .val{color:var(--danger)}
+
+  @media(max-width:900px){
+    .rail{grid-template-columns:1fr}
+    .cal-day{min-height:60px}
+    .cal-event{font-size:9px}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html" class="active">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Cash Flow <em>— next 90 days</em></h1>
+    <div class="meta">
+      <div class="date">Apr 22 → Jul 22 · 2026</div>
+      <div>8 paychecks · 47 events</div>
+    </div>
+  </div>
+
+  <div class="rail">
+    <div class="rail-stat pos">
+      <div class="label">Total Income · 90d</div>
+      <div class="val">+$24,200</div>
+      <div class="sub">4× Jaret · 4× Sarah · 0 bonus</div>
+    </div>
+    <div class="rail-stat neg">
+      <div class="label">Total Outflow · 90d</div>
+      <div class="val">−$18,530</div>
+      <div class="sub">bills + debt + budgets + ad-hoc</div>
+    </div>
+    <div class="rail-stat pos">
+      <div class="label">Projected Surplus</div>
+      <div class="val">+$5,670</div>
+      <div class="sub">avg $1,890/mo to savings</div>
+    </div>
+  </div>
+
+  <div class="projection">
+    <div class="projection-head">
+      <h3>Balance projection <em>— based on committed flows</em></h3>
+      <div class="controls">
+        <button class="chip active">30d</button>
+        <button class="chip">60d</button>
+        <button class="chip">90d</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <svg class="chart-svg" viewBox="0 0 800 180" preserveAspectRatio="none">
+        <!-- grid lines -->
+        <line x1="0" y1="30" x2="800" y2="30" stroke="#d8d4c9" stroke-dasharray="2,3"/>
+        <line x1="0" y1="75" x2="800" y2="75" stroke="#d8d4c9" stroke-dasharray="2,3"/>
+        <line x1="0" y1="120" x2="800" y2="120" stroke="#d8d4c9" stroke-dasharray="2,3"/>
+        <line x1="0" y1="165" x2="800" y2="165" stroke="#d8d4c9"/>
+        <!-- zero line label -->
+        <text x="4" y="28" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">$30K</text>
+        <text x="4" y="73" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">$20K</text>
+        <text x="4" y="118" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">$10K</text>
+        <!-- projected balance line (jagged up/down pattern for paychecks + expenses) -->
+        <path d="M 0 90 L 60 110 L 80 50 L 140 80 L 160 60 L 220 95 L 240 35 L 300 70 L 320 50 L 380 85 L 400 30 L 460 65 L 480 45 L 540 80 L 560 25 L 620 60 L 640 40 L 700 75 L 720 20 L 780 55 L 800 45" 
+              fill="none" stroke="#1f4d3a" stroke-width="1.5"/>
+        <!-- fill under curve -->
+        <path d="M 0 90 L 60 110 L 80 50 L 140 80 L 160 60 L 220 95 L 240 35 L 300 70 L 320 50 L 380 85 L 400 30 L 460 65 L 480 45 L 540 80 L 560 25 L 620 60 L 640 40 L 700 75 L 720 20 L 780 55 L 800 45 L 800 165 L 0 165 Z" 
+              fill="#1f4d3a" opacity="0.08"/>
+        <!-- paycheck markers -->
+        <circle cx="80" cy="50" r="3" fill="#c8491c"/>
+        <circle cx="160" cy="60" r="3" fill="#c8491c"/>
+        <circle cx="240" cy="35" r="3" fill="#c8491c"/>
+        <circle cx="320" cy="50" r="3" fill="#c8491c"/>
+        <circle cx="400" cy="30" r="3" fill="#c8491c"/>
+        <circle cx="480" cy="45" r="3" fill="#c8491c"/>
+        <circle cx="560" cy="25" r="3" fill="#c8491c"/>
+        <circle cx="640" cy="40" r="3" fill="#c8491c"/>
+        <circle cx="720" cy="20" r="3" fill="#c8491c"/>
+      </svg>
+    </div>
+    <div class="chart-legend" style="margin-top:8px">
+      <span><span class="dot" style="background:#1f4d3a"></span> Running balance</span>
+      <span><span class="dot" style="background:#c8491c;border-radius:50%;width:6px;height:6px"></span> Paycheck deposit</span>
+      <span style="margin-left:auto;color:var(--ink)">Starting: $24,812 → Ending: $30,482</span>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Calendar <em>— all committed events</em></h2>
+    <div class="controls">
+      <button class="chip active">All</button>
+      <button class="chip">Bills</button>
+      <button class="chip">Debt</button>
+      <button class="chip">Ad-hoc</button>
+      <button class="btn-primary">+ Add event</button>
+    </div>
+  </div>
+
+  <div class="cal-wrap">
+
+    <!-- APRIL -->
+    <div class="cal-month">
+      <div class="cal-month-head">
+        <h3>April <em style="font-style:italic;color:var(--ink-3);font-weight:300">2026</em></h3>
+        <div class="summary">
+          <span>In <strong>+$6,050</strong></span>
+          <span>Out <strong>−$3,300</strong></span>
+          <span>Net <strong style="color:var(--success)">+$2,750</strong></span>
+        </div>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-dow">Sun</div><div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div><div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div>
+        <div class="cal-day muted"><div class="dnum">29</div></div>
+        <div class="cal-day muted"><div class="dnum">30</div></div>
+        <div class="cal-day muted"><div class="dnum">31</div></div>
+        <div class="cal-day"><div class="dnum">1</div></div>
+        <div class="cal-day"><div class="dnum">2</div></div>
+        <div class="cal-day"><div class="dnum">3</div></div>
+        <div class="cal-day"><div class="dnum">4</div></div>
+        <div class="cal-day"><div class="dnum">5</div></div>
+        <div class="cal-day"><div class="dnum">6</div></div>
+        <div class="cal-day"><div class="dnum">7</div></div>
+        <div class="cal-day"><div class="dnum">8</div></div>
+        <div class="cal-day"><div class="dnum">9</div></div>
+        <div class="cal-day"><div class="dnum">10</div><div class="cal-event income">+Jaret $3,840</div></div>
+        <div class="cal-day"><div class="dnum">11</div></div>
+        <div class="cal-day"><div class="dnum">12</div></div>
+        <div class="cal-day"><div class="dnum">13</div></div>
+        <div class="cal-day"><div class="dnum">14</div></div>
+        <div class="cal-day"><div class="dnum">15</div><div class="cal-event income">+Sarah $2,210</div></div>
+        <div class="cal-day"><div class="dnum">16</div></div>
+        <div class="cal-day"><div class="dnum">17</div></div>
+        <div class="cal-day"><div class="dnum">18</div></div>
+        <div class="cal-day"><div class="dnum">19</div></div>
+        <div class="cal-day"><div class="dnum">20</div></div>
+        <div class="cal-day"><div class="dnum">21</div></div>
+        <div class="cal-day today"><div class="dnum">22</div></div>
+        <div class="cal-day"><div class="dnum">23</div></div>
+        <div class="cal-day"><div class="dnum">24</div></div>
+        <div class="cal-day"><div class="dnum">25</div><div class="cal-event income">+Jaret $3,840</div></div>
+        <div class="cal-day"><div class="dnum">26</div></div>
+        <div class="cal-day"><div class="dnum">27</div></div>
+        <div class="cal-day"><div class="dnum">28</div><div class="cal-event debt">TD Visa −$620</div></div>
+        <div class="cal-day"><div class="dnum">29</div></div>
+        <div class="cal-day"><div class="dnum">30</div><div class="cal-event income">+Sarah $2,210</div></div>
+        <div class="cal-day muted"><div class="dnum">1</div></div>
+        <div class="cal-day muted"><div class="dnum">2</div></div>
+      </div>
+    </div>
+
+    <!-- MAY -->
+    <div class="cal-month">
+      <div class="cal-month-head">
+        <h3>May <em style="font-style:italic;color:var(--ink-3);font-weight:300">2026</em></h3>
+        <div class="summary">
+          <span>In <strong>+$12,100</strong></span>
+          <span>Out <strong>−$8,420</strong></span>
+          <span>Net <strong style="color:var(--success)">+$3,680</strong></span>
+        </div>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-dow">Sun</div><div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div><div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div>
+        <div class="cal-day muted"><div class="dnum">26</div></div>
+        <div class="cal-day muted"><div class="dnum">27</div></div>
+        <div class="cal-day muted"><div class="dnum">28</div></div>
+        <div class="cal-day muted"><div class="dnum">29</div></div>
+        <div class="cal-day muted"><div class="dnum">30</div></div>
+        <div class="cal-day"><div class="dnum">1</div><div class="cal-event bill">Rent −$2,100</div></div>
+        <div class="cal-day"><div class="dnum">2</div></div>
+        <div class="cal-day"><div class="dnum">3</div><div class="cal-event bill">Hydro −$142</div></div>
+        <div class="cal-day"><div class="dnum">4</div><div class="cal-event bill">Rogers −$95</div></div>
+        <div class="cal-day"><div class="dnum">5</div><div class="cal-event bill">Phone −$180</div></div>
+        <div class="cal-day"><div class="dnum">6</div><div class="cal-event debt">Car loan −$485</div></div>
+        <div class="cal-day"><div class="dnum">7</div></div>
+        <div class="cal-day"><div class="dnum">8</div></div>
+        <div class="cal-day"><div class="dnum">9</div><div class="cal-event income">+Jaret $3,840</div></div>
+        <div class="cal-day"><div class="dnum">10</div><div class="cal-event adhoc">Wedding −$320</div></div>
+        <div class="cal-day"><div class="dnum">11</div></div>
+        <div class="cal-day"><div class="dnum">12</div><div class="cal-event debt">Amex −$410</div></div>
+        <div class="cal-day"><div class="dnum">13</div></div>
+        <div class="cal-day"><div class="dnum">14</div><div class="cal-event income">+Sarah $2,210</div></div>
+        <div class="cal-day"><div class="dnum">15</div><div class="cal-event debt">LOC −$350</div><div class="cal-event bill">Auto ins −$245</div></div>
+        <div class="cal-day"><div class="dnum">16</div></div>
+        <div class="cal-day"><div class="dnum">17</div></div>
+        <div class="cal-day"><div class="dnum">18</div><div class="cal-event bill">Streaming −$62</div></div>
+        <div class="cal-day"><div class="dnum">19</div></div>
+        <div class="cal-day"><div class="dnum">20</div><div class="cal-event bill">Gym −$89</div></div>
+        <div class="cal-day"><div class="dnum">21</div></div>
+        <div class="cal-day"><div class="dnum">22</div><div class="cal-event debt">Student −$275</div></div>
+        <div class="cal-day"><div class="dnum">23</div><div class="cal-event income">+Jaret $3,840</div></div>
+        <div class="cal-day"><div class="dnum">24</div><div class="cal-event adhoc">Mom gift −$150</div></div>
+        <div class="cal-day"><div class="dnum">25</div></div>
+        <div class="cal-day"><div class="dnum">26</div></div>
+        <div class="cal-day"><div class="dnum">27</div></div>
+        <div class="cal-day"><div class="dnum">28</div><div class="cal-event debt">TD Visa −$620</div><div class="cal-event income">+Sarah $2,210</div></div>
+        <div class="cal-day"><div class="dnum">29</div></div>
+        <div class="cal-day"><div class="dnum">30</div></div>
+        <div class="cal-day"><div class="dnum">31</div></div>
+      </div>
+    </div>
+
+    <!-- JUNE -->
+    <div class="cal-month">
+      <div class="cal-month-head">
+        <h3>June <em style="font-style:italic;color:var(--ink-3);font-weight:300">2026</em></h3>
+        <div class="summary">
+          <span>In <strong>+$6,050</strong></span>
+          <span>Out <strong>−$6,810</strong></span>
+          <span>Net <strong style="color:var(--danger)">−$760</strong></span>
+        </div>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-dow">Sun</div><div class="cal-dow">Mon</div><div class="cal-dow">Tue</div><div class="cal-dow">Wed</div><div class="cal-dow">Thu</div><div class="cal-dow">Fri</div><div class="cal-dow">Sat</div>
+        <div class="cal-day muted"><div class="dnum">31</div></div>
+        <div class="cal-day"><div class="dnum">1</div><div class="cal-event bill">Rent −$2,100</div></div>
+        <div class="cal-day"><div class="dnum">2</div></div>
+        <div class="cal-day"><div class="dnum">3</div><div class="cal-event bill">Hydro −$142</div></div>
+        <div class="cal-day"><div class="dnum">4</div><div class="cal-event bill">Rogers −$95</div></div>
+        <div class="cal-day"><div class="dnum">5</div><div class="cal-event adhoc">Brakes −$480</div></div>
+        <div class="cal-day"><div class="dnum">6</div><div class="cal-event debt">Car loan −$485</div></div>
+        <div class="cal-day"><div class="dnum">7</div></div>
+        <div class="cal-day"><div class="dnum">8</div></div>
+        <div class="cal-day"><div class="dnum">9</div></div>
+        <div class="cal-day"><div class="dnum">10</div></div>
+        <div class="cal-day"><div class="dnum">11</div></div>
+        <div class="cal-day"><div class="dnum">12</div><div class="cal-event income">+Sarah $2,210</div></div>
+        <div class="cal-day"><div class="dnum">13</div></div>
+        <div class="cal-day"><div class="dnum">14</div></div>
+        <div class="cal-day"><div class="dnum">15</div><div class="cal-event debt">Amex −$410</div></div>
+        <div class="cal-day"><div class="dnum">16</div></div>
+        <div class="cal-day"><div class="dnum">17</div></div>
+        <div class="cal-day"><div class="dnum">18</div><div class="cal-event bill">Streaming −$62</div></div>
+        <div class="cal-day"><div class="dnum">19</div></div>
+        <div class="cal-day"><div class="dnum">20</div><div class="cal-event income">+Jaret $3,840</div></div>
+        <div class="cal-day"><div class="dnum">21</div></div>
+        <div class="cal-day"><div class="dnum">22</div><div class="cal-event debt">Student −$275</div></div>
+        <div class="cal-day"><div class="dnum">23</div></div>
+        <div class="cal-day"><div class="dnum">24</div></div>
+        <div class="cal-day"><div class="dnum">25</div></div>
+        <div class="cal-day"><div class="dnum">26</div><div class="cal-event income">+Sarah $2,210</div></div>
+        <div class="cal-day"><div class="dnum">27</div></div>
+        <div class="cal-day"><div class="dnum">28</div><div class="cal-event debt">TD Visa −$620</div></div>
+        <div class="cal-day"><div class="dnum">29</div></div>
+        <div class="cal-day"><div class="dnum">30</div></div>
+        <div class="cal-day muted"><div class="dnum">1</div></div>
+        <div class="cal-day muted"><div class="dnum">2</div></div>
+        <div class="cal-day muted"><div class="dnum">3</div></div>
+        <div class="cal-day muted"><div class="dnum">4</div></div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Recurring Bills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  .bills-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+  .bills-hero .stat{background:var(--card);padding:18px 22px}
+  .bills-hero .stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .bills-hero .stat .val{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+  .bills-hero .stat .sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:6px}
+
+  .group{background:var(--card);border:1px solid var(--line);margin-bottom:24px}
+  .group-head{padding:14px 20px;background:var(--bg-2);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .group-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+  .group-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+  .group-head .tot{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600}
+
+  .bill-row{display:grid;grid-template-columns:16px 1fr 140px 120px 120px 100px 24px;gap:14px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);font-size:13px}
+  .bill-row:last-child{border-bottom:none}
+  .bill-row:hover{background:var(--bg)}
+  .bill-row .name{display:flex;flex-direction:column;gap:2px}
+  .bill-row .name strong{font-weight:500}
+  .bill-row .name span{font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
+  .bill-row .frequency{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-2);text-transform:uppercase;letter-spacing:1px}
+  .bill-row .due{font-family:'JetBrains Mono',monospace;font-size:12px;display:flex;flex-direction:column;gap:1px}
+  .bill-row .due strong{color:var(--ink);font-weight:500}
+  .bill-row .due span{color:var(--ink-3);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+  .bill-row .method{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px}
+  .bill-row .amt{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;text-align:right}
+  .bill-row .menu{color:var(--ink-3);cursor:pointer;text-align:center;font-size:16px;font-weight:600}
+  .bill-row .menu:hover{color:var(--ink)}
+  .bill-row.paid{opacity:.55}
+  .bill-row.paid .amt{text-decoration:line-through}
+
+  .status-pill{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;padding:2px 7px;border-radius:var(--radius);display:inline-block;margin-top:4px}
+  .status-pill.auto{background:rgba(45,90,61,0.1);color:var(--success)}
+  .status-pill.manual{background:rgba(139,111,47,0.1);color:var(--accent-3)}
+  .status-pill.paid{background:rgba(45,90,61,0.1);color:var(--success)}
+  .status-pill.upcoming{background:rgba(200,73,28,0.1);color:var(--accent)}
+
+  @media(max-width:900px){
+    .bills-hero{grid-template-columns:repeat(2,1fr)}
+    .bill-row{grid-template-columns:12px 1fr 90px;gap:10px}
+    .bill-row .frequency,.bill-row .method,.bill-row .menu{display:none}
+    .bill-row .due{display:none}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html" class="active">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Recurring Bills <em>— the steady drip</em></h1>
+    <div class="meta">
+      <div class="date">April 2026 cycle</div>
+      <div>14 bills · 11 autopay · 3 manual</div>
+    </div>
+  </div>
+
+  <div class="bills-hero">
+    <div class="stat">
+      <div class="label">Monthly Total</div>
+      <div class="val">$3,782</div>
+      <div class="sub">same amount every month</div>
+    </div>
+    <div class="stat">
+      <div class="label">Paid This Month</div>
+      <div class="val" style="color:var(--success)">$2,100</div>
+      <div class="sub">4 of 14 bills</div>
+    </div>
+    <div class="stat">
+      <div class="label">Still Due</div>
+      <div class="val" style="color:var(--accent)">$1,682</div>
+      <div class="sub">10 bills upcoming</div>
+    </div>
+    <div class="stat">
+      <div class="label">Next Due</div>
+      <div class="val">Apr 28</div>
+      <div class="sub">TD Visa · $620 · 6 days</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>All recurring bills</h2>
+    <div class="controls">
+      <button class="chip active">All</button>
+      <button class="chip">Housing</button>
+      <button class="chip">Utilities</button>
+      <button class="chip">Subscriptions</button>
+      <button class="chip">Insurance</button>
+      <button class="btn-primary">+ Add bill</button>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <h3>Housing <em>— $2,100/mo</em></h3>
+      <span class="tot">$2,100</span>
+    </div>
+    <div class="bill-row paid">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Rent</strong>
+        <span>Leslieville apartment</span>
+        <span class="status-pill auto">Autopay · paid</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>1st</strong><span>of month</span></div>
+      <div class="method">TD Chq ····8842</div>
+      <div class="amt">$2,100.00</div>
+      <div class="menu">⋯</div>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <h3>Utilities <em>— $332/mo avg</em></h3>
+      <span class="tot">$332</span>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Hydro · Toronto Hydro</strong>
+        <span>variable · averaged</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 3</strong><span>11 days</span></div>
+      <div class="method">TD Chq ····8842</div>
+      <div class="amt">$142.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Internet · Rogers</strong>
+        <span>Ignite 500u</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 4</strong><span>12 days</span></div>
+      <div class="method">Amex ····0018</div>
+      <div class="amt">$95.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Phone · Bell</strong>
+        <span>both lines + share</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 5</strong><span>13 days</span></div>
+      <div class="method">TD Chq ····8842</div>
+      <div class="amt">$180.00</div>
+      <div class="menu">⋯</div>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <h3>Insurance <em>— $370/mo</em></h3>
+      <span class="tot">$370</span>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Auto insurance · Aviva</strong>
+        <span>Civic + Sarah's CRV</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 15</strong><span>23 days</span></div>
+      <div class="method">TD Chq ····8842</div>
+      <div class="amt">$245.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Tenant insurance · Square One</strong>
+        <span>contents + liability</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 8</strong><span>16 days</span></div>
+      <div class="method">Amex ····0018</div>
+      <div class="amt">$28.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Life insurance · Sun Life</strong>
+        <span>term 20 · $500K</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 1</strong><span>9 days</span></div>
+      <div class="method">TD Chq ····8842</div>
+      <div class="amt">$97.00</div>
+      <div class="menu">⋯</div>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <h3>Subscriptions <em>— $342/mo</em></h3>
+      <span class="tot">$342</span>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Streaming bundle</strong>
+        <span>Netflix + Disney+ + Crave</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 18</strong><span>26 days</span></div>
+      <div class="method">Amex ····0018</div>
+      <div class="amt">$62.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Gym · GoodLife</strong>
+        <span>premium · both</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 20</strong><span>28 days</span></div>
+      <div class="method">TD Visa ····4291</div>
+      <div class="amt">$89.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Spotify Duo</strong>
+        <span>family plan</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 11</strong><span>19 days</span></div>
+      <div class="method">Amex ····0018</div>
+      <div class="amt">$17.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>iCloud + Google storage</strong>
+        <span>2TB + 200GB</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 7</strong><span>15 days</span></div>
+      <div class="method">Amex ····0018</div>
+      <div class="amt">$19.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Chat-GPT + Claude</strong>
+        <span>Plus + Pro</span>
+        <span class="status-pill auto">Autopay</span>
+      </div>
+      <div class="frequency">Monthly</div>
+      <div class="due"><strong>May 14</strong><span>22 days</span></div>
+      <div class="method">Amex ····0018</div>
+      <div class="amt">$55.00</div>
+      <div class="menu">⋯</div>
+    </div>
+    <div class="bill-row">
+      <div class="bar bill"></div>
+      <div class="name">
+        <strong>Domains + hosting</strong>
+        <span>TGCS Co. · annualized</span>
+        <span class="status-pill manual">Manual</span>
+      </div>
+      <div class="frequency">Quarterly</div>
+      <div class="due"><strong>Jun 1</strong><span>40 days</span></div>
+      <div class="method">Amex ····0018</div>
+      <div class="amt">$100.00</div>
+      <div class="menu">⋯</div>
+    </div>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <h3>Debt service <em>— counted in Debts</em></h3>
+      <span class="tot" style="color:var(--ink-3)">$2,140 · see Debts page →</span>
+    </div>
+    <div style="padding:20px;font-size:12px;color:var(--ink-3);text-align:center">
+      Debt minimums (Visa, Amex, LOC, car loan, student loan) are tracked on the <a href="debts.html" style="color:var(--ink)">Debts</a> page. They don't show up twice.
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

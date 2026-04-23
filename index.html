@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  /* TIMELINE */
+  .timeline{background:var(--card);border:1px solid var(--line);margin-bottom:40px;overflow:hidden}
+  .timeline-header{display:grid;grid-template-columns:120px 1fr 140px;padding:14px 20px;background:var(--bg-2);border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .paycheck{border-bottom:1px solid var(--line);padding:18px 20px 20px;display:grid;grid-template-columns:120px 1fr 140px;gap:0;align-items:start}
+  .paycheck:last-child{border-bottom:none}
+  .paycheck-date{display:flex;flex-direction:column;gap:2px}
+  .paycheck-date .day{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-1px;line-height:1}
+  .paycheck-date .month{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-top:2px}
+  .paycheck-date .who{font-size:12px;color:var(--ink-2);margin-top:10px}
+  .paycheck-date .incoming{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent);font-weight:600;margin-top:4px}
+  
+  .paycheck-items{display:flex;flex-direction:column;gap:1px;background:var(--line)}
+  .item{background:var(--card);padding:10px 14px;display:grid;grid-template-columns:16px 1fr auto auto;gap:12px;align-items:center;font-size:13px}
+  .item .name{display:flex;flex-direction:column;gap:1px}
+  .item .name strong{font-weight:500}
+  .item .name span{font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
+  .item .amt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;text-align:right;min-width:90px}
+  .item:hover{background:var(--bg)}
+  
+  .paycheck-summary{display:flex;flex-direction:column;gap:6px;padding-left:24px;border-left:1px solid var(--line);align-items:flex-end;text-align:right}
+  .paycheck-summary .row{display:flex;justify-content:space-between;width:100%;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
+  .paycheck-summary .row.total{border-top:1px solid var(--line);padding-top:6px;margin-top:4px;color:var(--ink);font-size:13px;font-weight:600}
+  .paycheck-summary .leftover{font-family:'Fraunces',serif;font-size:24px;font-weight:400;color:var(--success);margin-top:8px;letter-spacing:-0.5px}
+  .paycheck-summary .leftover.negative{color:var(--danger)}
+  .paycheck-summary .leftover-label{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+
+  /* GRID */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:40px}
+
+  /* debts */
+  .debt-row{display:grid;grid-template-columns:1fr 60px 90px 100px;padding:12px 20px;border-bottom:1px solid var(--line);align-items:center;gap:12px;font-size:13px}
+  .debt-row:last-child{border-bottom:none}
+  .debt-row:hover{background:var(--bg)}
+  .debt-row .name{display:flex;flex-direction:column;gap:2px}
+  .debt-row .name strong{font-weight:500}
+  .debt-row .name span{font-size:10px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+  .debt-row .apr{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-2);text-align:right}
+  .debt-row .min{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-3);text-align:right}
+  .debt-row .bal{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;text-align:right}
+  .debt-row .apr.high{color:var(--danger);font-weight:600}
+  .panel-foot{display:grid;grid-template-columns:1fr 60px 90px 100px;padding:12px 20px;background:var(--bg-2);border-top:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:12px;gap:12px}
+  .panel-foot .label{text-transform:uppercase;letter-spacing:1.5px;font-size:10px;color:var(--ink-3)}
+  .panel-foot .val{text-align:right;font-weight:600}
+
+  /* budgets */
+  .budget-row{padding:12px 20px;border-bottom:1px solid var(--line)}
+  .budget-row:last-child{border-bottom:none}
+  .budget-row:hover{background:var(--bg)}
+  .budget-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .budget-top strong{font-weight:500;font-size:13px}
+  .budget-top .nums{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-2)}
+  .budget-top .nums .used{color:var(--ink)}
+  .budget-top .nums .total{color:var(--ink-3)}
+  .budget-bar{height:4px;background:var(--bg-2);border-radius:2px;overflow:hidden;position:relative}
+  .budget-bar .fill{height:100%;background:var(--accent-4);border-radius:2px}
+  .budget-bar .fill.warn{background:var(--accent-3)}
+  .budget-bar .fill.over{background:var(--danger)}
+  .budget-meta{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px}
+
+  /* ADHOC */
+  .adhoc-section{margin-bottom:40px}
+  .adhoc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .adhoc-card{background:var(--card);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:6px;position:relative}
+  .adhoc-card .when{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:600}
+  .adhoc-card .what{font-family:'Fraunces',serif;font-size:18px;font-weight:400;line-height:1.2;margin:4px 0}
+  .adhoc-card .amt{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;margin-top:auto;padding-top:8px;border-top:1px solid var(--line)}
+  .adhoc-card .note{font-size:11px;color:var(--ink-3);line-height:1.4}
+  .adhoc-card.add{border-style:dashed;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-3);min-height:130px}
+  .adhoc-card.add:hover{border-color:var(--ink);color:var(--ink);background:var(--bg)}
+  .adhoc-card.add .plus{font-size:24px;font-weight:300;font-family:'Fraunces',serif}
+  .adhoc-card.add span{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px}
+
+  @media(max-width:900px){
+    .two-col{grid-template-columns:1fr;gap:20px}
+    .adhoc-grid{grid-template-columns:1fr}
+    .paycheck{grid-template-columns:1fr;gap:16px}
+    .paycheck-summary{padding-left:0;border-left:none;border-top:1px solid var(--line);padding-top:12px}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html" class="active">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+
+  <div class="topbar">
+    <h1>Good morning, <em>Jaret.</em></h1>
+    <div class="meta">
+      <div class="date">Wed · Apr 22 · 2026</div>
+      <div>Last pull 04:12 · all sources</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="label">Liquid Assets</div>
+      <div class="val">$24,812</div>
+      <div class="delta up">↗ +$1,240 <span style="color:var(--ink-3)">· 30d</span></div>
+    </div>
+    <div class="stat negative">
+      <div class="label">Total Debt</div>
+      <div class="val">$48,320</div>
+      <div class="delta down">↘ −$890 <span style="color:var(--ink-3)">· 30d</span></div>
+    </div>
+    <div class="stat">
+      <div class="label">Portfolio</div>
+      <div class="val">$62,430</div>
+      <div class="delta up">↗ +$2,140 <span style="color:var(--ink-3)">· 30d</span></div>
+    </div>
+    <div class="stat">
+      <div class="label">Net Worth</div>
+      <div class="val">$38,922</div>
+      <div class="delta up">↗ +$4,270 <span style="color:var(--ink-3)">· YTD</span></div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Cash Flow <em>— by paycheck</em></h2>
+    <div class="controls">
+      <button class="chip active">Next 4 paychecks</button>
+      <button class="chip">30 days</button>
+      <a href="cashflow.html" class="chip">Full 90d view →</a>
+      <button class="btn-primary">+ Add expense</button>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-header">
+      <div>Paycheck</div>
+      <div>Committed Expenses</div>
+      <div style="text-align:right">Remaining</div>
+    </div>
+
+    <div class="paycheck">
+      <div class="paycheck-date">
+        <div class="day">25</div>
+        <div class="month">Apr · Fri</div>
+        <div class="who">Jaret · Mojo</div>
+        <div class="incoming">+$3,840.00</div>
+      </div>
+      <div class="paycheck-items">
+        <div class="item"><div class="bar debt"></div><div class="name"><strong>TD Visa payment</strong><span>due apr 28</span></div><div class="tag debt">Debt</div><div class="amt">−$620.00</div></div>
+        <div class="item"><div class="bar bill"></div><div class="name"><strong>Rent</strong><span>monthly · 1st</span></div><div class="tag bill">Bill</div><div class="amt">−$2,100.00</div></div>
+        <div class="item"><div class="bar budget"></div><div class="name"><strong>Groceries</strong><span>budget allocation</span></div><div class="tag budget">Budget</div><div class="amt">−$400.00</div></div>
+        <div class="item"><div class="bar budget"></div><div class="name"><strong>Gas</strong><span>budget allocation</span></div><div class="tag budget">Budget</div><div class="amt">−$180.00</div></div>
+      </div>
+      <div class="paycheck-summary">
+        <div class="row"><span>In</span><span>+$3,840</span></div>
+        <div class="row"><span>Out</span><span>−$3,300</span></div>
+        <div class="row total"><span>Net</span><span>+$540</span></div>
+        <div class="leftover-label">Remaining</div>
+        <div class="leftover">$540</div>
+      </div>
+    </div>
+
+    <div class="paycheck">
+      <div class="paycheck-date">
+        <div class="day">30</div>
+        <div class="month">Apr · Wed</div>
+        <div class="who">Sarah</div>
+        <div class="incoming">+$2,210.00</div>
+      </div>
+      <div class="paycheck-items">
+        <div class="item"><div class="bar bill"></div><div class="name"><strong>Hydro</strong><span>due may 3</span></div><div class="tag bill">Bill</div><div class="amt">−$142.00</div></div>
+        <div class="item"><div class="bar bill"></div><div class="name"><strong>Internet · Rogers</strong><span>due may 4</span></div><div class="tag bill">Bill</div><div class="amt">−$95.00</div></div>
+        <div class="item"><div class="bar bill"></div><div class="name"><strong>Phone · both lines</strong><span>due may 5</span></div><div class="tag bill">Bill</div><div class="amt">−$180.00</div></div>
+        <div class="item"><div class="bar debt"></div><div class="name"><strong>Car loan</strong><span>due may 6</span></div><div class="tag debt">Debt</div><div class="amt">−$485.00</div></div>
+        <div class="item"><div class="bar adhoc"></div><div class="name"><strong>Connor's wedding · hotel</strong><span>ad-hoc · may 10</span></div><div class="tag adhoc">Ad-hoc</div><div class="amt">−$320.00</div></div>
+      </div>
+      <div class="paycheck-summary">
+        <div class="row"><span>In</span><span>+$2,210</span></div>
+        <div class="row"><span>Out</span><span>−$1,222</span></div>
+        <div class="row total"><span>Net</span><span>+$988</span></div>
+        <div class="leftover-label">Remaining</div>
+        <div class="leftover">$988</div>
+      </div>
+    </div>
+
+    <div class="paycheck">
+      <div class="paycheck-date">
+        <div class="day">09</div>
+        <div class="month">May · Fri</div>
+        <div class="who">Jaret · Mojo</div>
+        <div class="incoming">+$3,840.00</div>
+      </div>
+      <div class="paycheck-items">
+        <div class="item"><div class="bar debt"></div><div class="name"><strong>Amex payment</strong><span>due may 12</span></div><div class="tag debt">Debt</div><div class="amt">−$410.00</div></div>
+        <div class="item"><div class="bar debt"></div><div class="name"><strong>LOC payment</strong><span>due may 15</span></div><div class="tag debt">Debt</div><div class="amt">−$350.00</div></div>
+        <div class="item"><div class="bar bill"></div><div class="name"><strong>Insurance · auto</strong><span>due may 15</span></div><div class="tag bill">Bill</div><div class="amt">−$245.00</div></div>
+        <div class="item"><div class="bar budget"></div><div class="name"><strong>Groceries</strong><span>budget allocation</span></div><div class="tag budget">Budget</div><div class="amt">−$400.00</div></div>
+        <div class="item"><div class="bar budget"></div><div class="name"><strong>Gas</strong><span>budget allocation</span></div><div class="tag budget">Budget</div><div class="amt">−$180.00</div></div>
+      </div>
+      <div class="paycheck-summary">
+        <div class="row"><span>In</span><span>+$3,840</span></div>
+        <div class="row"><span>Out</span><span>−$1,585</span></div>
+        <div class="row total"><span>Net</span><span>+$2,255</span></div>
+        <div class="leftover-label">Remaining</div>
+        <div class="leftover">$2,255</div>
+      </div>
+    </div>
+
+    <div class="paycheck">
+      <div class="paycheck-date">
+        <div class="day">14</div>
+        <div class="month">May · Wed</div>
+        <div class="who">Sarah</div>
+        <div class="incoming">+$2,210.00</div>
+      </div>
+      <div class="paycheck-items">
+        <div class="item"><div class="bar bill"></div><div class="name"><strong>Streaming · bundle</strong><span>due may 18</span></div><div class="tag bill">Bill</div><div class="amt">−$62.00</div></div>
+        <div class="item"><div class="bar bill"></div><div class="name"><strong>Gym</strong><span>due may 20</span></div><div class="tag bill">Bill</div><div class="amt">−$89.00</div></div>
+        <div class="item"><div class="bar debt"></div><div class="name"><strong>Student loan</strong><span>due may 22</span></div><div class="tag debt">Debt</div><div class="amt">−$275.00</div></div>
+      </div>
+      <div class="paycheck-summary">
+        <div class="row"><span>In</span><span>+$2,210</span></div>
+        <div class="row"><span>Out</span><span>−$426</span></div>
+        <div class="row total"><span>Net</span><span>+$1,784</span></div>
+        <div class="leftover-label">Remaining</div>
+        <div class="leftover">$1,784</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Debts <em>— 7 accounts</em></h3>
+        <a href="debts.html" class="add">Manage →</a>
+      </div>
+      <div class="debt-row"><div class="name"><strong>TD Visa</strong><span>····4291</span></div><div class="apr high">22.9%</div><div class="min">$620/mo</div><div class="bal">$8,420</div></div>
+      <div class="debt-row"><div class="name"><strong>Amex Cobalt</strong><span>····0018</span></div><div class="apr high">21.0%</div><div class="min">$410/mo</div><div class="bal">$5,210</div></div>
+      <div class="debt-row"><div class="name"><strong>TD Line of Credit</strong><span>unsecured</span></div><div class="apr">9.4%</div><div class="min">$350/mo</div><div class="bal">$12,800</div></div>
+      <div class="debt-row"><div class="name"><strong>Car loan · RBC</strong><span>36 mo remaining</span></div><div class="apr">6.8%</div><div class="min">$485/mo</div><div class="bal">$14,200</div></div>
+      <div class="debt-row"><div class="name"><strong>Student loan</strong><span>OSAP</span></div><div class="apr">5.2%</div><div class="min">$275/mo</div><div class="bal">$7,690</div></div>
+      <div class="panel-foot">
+        <div class="label">Total</div>
+        <div class="val" style="color:var(--ink-3);font-size:11px">avg 12.4%</div>
+        <div class="val">$2,140/mo</div>
+        <div class="val">$48,320</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h3>Budgets <em>— this cycle</em></h3>
+        <a href="budgets.html" class="add">Manage →</a>
+      </div>
+      <div class="budget-row">
+        <div class="budget-top"><strong>Groceries</strong><div class="nums"><span class="used">$312</span> / <span class="total">$400</span></div></div>
+        <div class="budget-bar"><div class="fill" style="width:78%"></div></div>
+        <div class="budget-meta"><span>78% used</span><span>$88 left · 9 days</span></div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-top"><strong>Gas</strong><div class="nums"><span class="used">$124</span> / <span class="total">$180</span></div></div>
+        <div class="budget-bar"><div class="fill" style="width:69%"></div></div>
+        <div class="budget-meta"><span>69% used</span><span>$56 left · 9 days</span></div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-top"><strong>Dining · coffee</strong><div class="nums"><span class="used">$142</span> / <span class="total">$150</span></div></div>
+        <div class="budget-bar"><div class="fill warn" style="width:95%"></div></div>
+        <div class="budget-meta"><span style="color:var(--accent-3)">95% used</span><span>$8 left · 9 days</span></div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-top"><strong>Entertainment</strong><div class="nums"><span class="used">$88</span> / <span class="total">$120</span></div></div>
+        <div class="budget-bar"><div class="fill" style="width:73%"></div></div>
+        <div class="budget-meta"><span>73% used</span><span>$32 left · 9 days</span></div>
+      </div>
+      <div class="budget-row">
+        <div class="budget-top"><strong>Household</strong><div class="nums"><span class="used">$215</span> / <span class="total">$200</span></div></div>
+        <div class="budget-bar"><div class="fill over" style="width:100%"></div></div>
+        <div class="budget-meta"><span style="color:var(--danger)">over by $15</span><span>9 days remaining</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="adhoc-section">
+    <div class="section-head">
+      <h2>Ad-Hoc <em>— one-offs on the calendar</em></h2>
+      <div class="controls">
+        <a href="adhoc.html" class="btn-ghost">View all →</a>
+        <button class="btn-primary">+ Quick add</button>
+      </div>
+    </div>
+    <div class="adhoc-grid">
+      <div class="adhoc-card"><div class="when">May 10 · 18 days</div><div class="what">Connor's wedding · hotel</div><div class="note">Hilton Niagara · two nights · Sarah + me</div><div class="amt">$320.00</div></div>
+      <div class="adhoc-card"><div class="when">May 24 · 32 days</div><div class="what">Mom's birthday gift</div><div class="note">Still deciding — set aside the cash anyway</div><div class="amt">$150.00</div></div>
+      <div class="adhoc-card"><div class="when">Jun 05 · 44 days</div><div class="what">Brake pads · Civic</div><div class="note">Quoted at Dave's shop · includes rotor turn</div><div class="amt">$480.00</div></div>
+      <div class="adhoc-card add"><div class="plus">+</div><span>Add one-off</span></div>
+    </div>
+  </div>
+
+</main>
+
+</body>
+</html>

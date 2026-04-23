@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Income</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  .income-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+  .income-hero .stat{background:var(--card);padding:18px 22px}
+  .income-hero .stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .income-hero .stat .val{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums;color:var(--success)}
+  .income-hero .stat .sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:6px}
+
+  .source-list{background:var(--card);border:1px solid var(--line);margin-bottom:32px}
+  .source{display:grid;grid-template-columns:300px 1fr 140px;padding:24px;border-bottom:1px solid var(--line);gap:24px;align-items:center}
+  .source:last-child{border-bottom:none}
+  .source:hover{background:var(--bg)}
+  .source-meta h4{font-family:'Fraunces',serif;font-size:22px;font-weight:400;letter-spacing:-0.3px}
+  .source-meta .who{font-size:12px;color:var(--ink-2);margin-top:2px}
+  .source-meta .chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .source-meta .chips span{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 8px;border:1px solid var(--line);color:var(--ink-2);border-radius:var(--radius);text-transform:uppercase;letter-spacing:1px}
+  .source-meta .chips span.primary{background:rgba(45,90,61,0.08);color:var(--success);border-color:var(--success)}
+
+  .source-schedule{display:flex;flex-direction:column;gap:12px}
+  .ss-row{display:grid;grid-template-columns:110px 1fr;gap:16px;align-items:center;font-size:13px}
+  .ss-row .k{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .ss-row .v{color:var(--ink)}
+  .ss-row .v strong{font-weight:600}
+  .mini-timeline{display:flex;gap:4px;margin-top:4px}
+  .mini-timeline .pill{flex:1;padding:6px 8px;font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--bg-2);border-radius:var(--radius);text-align:center}
+  .mini-timeline .pill.next{background:rgba(200,73,28,0.1);color:var(--accent);font-weight:600}
+  .mini-timeline .pill strong{display:block;font-size:11px;color:var(--ink);margin-top:2px}
+
+  .source-amount{text-align:right}
+  .source-amount .big{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-0.5px;line-height:1;color:var(--success);font-variant-numeric:tabular-nums}
+  .source-amount .small{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:4px}
+
+  /* annual projection */
+  .projection{background:var(--card);border:1px solid var(--line);padding:24px;margin-bottom:32px}
+  .projection-head{margin-bottom:20px}
+  .projection-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+  .projection-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+  .pcell{background:var(--card);padding:14px 12px;text-align:center}
+  .pcell .month{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .pcell .amt{font-family:'Fraunces',serif;font-size:18px;font-weight:400;margin:4px 0;color:var(--success)}
+  .pcell .detail{font-size:10px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
+  .pcell.bonus{background:#fff6e8}
+  .pcell.bonus .amt{color:var(--accent)}
+
+  /* upcoming */
+  .upcoming{background:var(--card);border:1px solid var(--line)}
+  .up-row{display:grid;grid-template-columns:80px 1fr 160px 120px;gap:16px;padding:14px 20px;border-bottom:1px solid var(--line);align-items:center;font-size:13px}
+  .up-row:last-child{border-bottom:none}
+  .up-row:hover{background:var(--bg)}
+  .up-row .day{display:flex;flex-direction:column;gap:2px}
+  .up-row .day .d{font-family:'Fraunces',serif;font-size:22px;font-weight:300;line-height:1;letter-spacing:-0.5px}
+  .up-row .day .m{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .up-row .src{display:flex;flex-direction:column;gap:2px}
+  .up-row .src strong{font-weight:500}
+  .up-row .src span{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3)}
+  .up-row .eta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px}
+  .up-row .amt{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;text-align:right;color:var(--success)}
+
+  @media(max-width:900px){
+    .income-hero{grid-template-columns:repeat(2,1fr)}
+    .source{grid-template-columns:1fr;gap:14px}
+    .source-amount{text-align:left}
+    .projection-grid{grid-template-columns:repeat(3,1fr)}
+    .up-row{grid-template-columns:60px 1fr auto;gap:12px}
+    .up-row .eta{display:none}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html" class="active">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Income <em>— what comes in</em></h1>
+    <div class="meta">
+      <div class="date">4 active sources</div>
+      <div>Next: Jaret · Apr 25 · 3 days</div>
+    </div>
+  </div>
+
+  <div class="income-hero">
+    <div class="stat">
+      <div class="label">Monthly Combined</div>
+      <div class="val">$12,100</div>
+      <div class="sub">after tax · steady</div>
+    </div>
+    <div class="stat">
+      <div class="label">Jaret · Mojo</div>
+      <div class="val">$7,680</div>
+      <div class="sub">biweekly · 2× $3,840</div>
+    </div>
+    <div class="stat">
+      <div class="label">Sarah</div>
+      <div class="val">$4,420</div>
+      <div class="sub">biweekly · 2× $2,210</div>
+    </div>
+    <div class="stat">
+      <div class="label">YTD Total</div>
+      <div class="val">$48,640</div>
+      <div class="sub">on pace for $146K</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Sources</h2>
+    <div class="controls">
+      <button class="btn-primary">+ Add source</button>
+    </div>
+  </div>
+
+  <div class="source-list">
+
+    <div class="source">
+      <div class="source-meta">
+        <h4>Mojo Food Group</h4>
+        <div class="who">Jaret · Director of Operations</div>
+        <div class="chips">
+          <span class="primary">Primary</span>
+          <span>Salary</span>
+          <span>Biweekly</span>
+          <span>Direct deposit</span>
+        </div>
+      </div>
+      <div class="source-schedule">
+        <div class="ss-row">
+          <div class="k">Schedule</div>
+          <div class="v">Every other <strong>Friday</strong> · biweekly</div>
+        </div>
+        <div class="ss-row">
+          <div class="k">Account</div>
+          <div class="v">TD Chq ····8842</div>
+        </div>
+        <div class="ss-row">
+          <div class="k">Next pays</div>
+          <div class="v">
+            <div class="mini-timeline">
+              <div class="pill next">Apr 25<strong>$3,840</strong></div>
+              <div class="pill">May 9<strong>$3,840</strong></div>
+              <div class="pill">May 23<strong>$3,840</strong></div>
+              <div class="pill">Jun 6<strong>$3,840</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="source-amount">
+        <div class="big">$3,840</div>
+        <div class="small">per paycheck</div>
+      </div>
+    </div>
+
+    <div class="source">
+      <div class="source-meta">
+        <h4>Sarah's Employer</h4>
+        <div class="who">Sarah · senior role</div>
+        <div class="chips">
+          <span>Salary</span>
+          <span>Biweekly</span>
+          <span>Direct deposit</span>
+        </div>
+      </div>
+      <div class="source-schedule">
+        <div class="ss-row">
+          <div class="k">Schedule</div>
+          <div class="v">Every other <strong>Wednesday</strong> · biweekly</div>
+        </div>
+        <div class="ss-row">
+          <div class="k">Account</div>
+          <div class="v">TD Chq ····8842 · joint</div>
+        </div>
+        <div class="ss-row">
+          <div class="k">Next pays</div>
+          <div class="v">
+            <div class="mini-timeline">
+              <div class="pill next">Apr 30<strong>$2,210</strong></div>
+              <div class="pill">May 14<strong>$2,210</strong></div>
+              <div class="pill">May 28<strong>$2,210</strong></div>
+              <div class="pill">Jun 11<strong>$2,210</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="source-amount">
+        <div class="big">$2,210</div>
+        <div class="small">per paycheck</div>
+      </div>
+    </div>
+
+    <div class="source">
+      <div class="source-meta">
+        <h4>TGCS Co.</h4>
+        <div class="who">Jaret · side business · e-commerce + design</div>
+        <div class="chips">
+          <span>Self-employed</span>
+          <span>Variable</span>
+          <span>Monthly payout</span>
+        </div>
+      </div>
+      <div class="source-schedule">
+        <div class="ss-row">
+          <div class="k">Schedule</div>
+          <div class="v">End of month · <strong>variable</strong> amount</div>
+        </div>
+        <div class="ss-row">
+          <div class="k">Account</div>
+          <div class="v">Business → personal transfer</div>
+        </div>
+        <div class="ss-row">
+          <div class="k">Recent</div>
+          <div class="v">
+            <div class="mini-timeline">
+              <div class="pill">Jan<strong>$420</strong></div>
+              <div class="pill">Feb<strong>$680</strong></div>
+              <div class="pill">Mar<strong>$1,100</strong></div>
+              <div class="pill">Apr<strong>est $900</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="source-amount">
+        <div class="big">~$775</div>
+        <div class="small">avg monthly</div>
+      </div>
+    </div>
+
+    <div class="source">
+      <div class="source-meta">
+        <h4>Annual bonus · Mojo</h4>
+        <div class="who">Jaret · performance-based</div>
+        <div class="chips">
+          <span>Bonus</span>
+          <span>Once/year</span>
+          <span>Variable</span>
+        </div>
+      </div>
+      <div class="source-schedule">
+        <div class="ss-row">
+          <div class="k">Schedule</div>
+          <div class="v">Typically <strong>mid-December</strong></div>
+        </div>
+        <div class="ss-row">
+          <div class="k">Last year</div>
+          <div class="v">Dec 15, 2025 · $8,500 · 110% of target</div>
+        </div>
+        <div class="ss-row">
+          <div class="k">This year target</div>
+          <div class="v">$9,200 · tracking on pace</div>
+        </div>
+      </div>
+      <div class="source-amount">
+        <div class="big">~$9,200</div>
+        <div class="small">projected Dec 2026</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-head">
+    <h2>Projection <em>— 6-month forward</em></h2>
+    <div class="controls">
+      <button class="chip active">6mo</button>
+      <button class="chip">12mo</button>
+    </div>
+  </div>
+
+  <div class="projection">
+    <div class="projection-grid">
+      <div class="pcell">
+        <div class="month">Apr 2026</div>
+        <div class="amt">$12,100</div>
+        <div class="detail">2 Jaret · 2 Sarah</div>
+      </div>
+      <div class="pcell">
+        <div class="month">May 2026</div>
+        <div class="amt">$13,000</div>
+        <div class="detail">2 Jaret · 2 Sarah + TGCS</div>
+      </div>
+      <div class="pcell">
+        <div class="month">Jun 2026</div>
+        <div class="amt">$12,100</div>
+        <div class="detail">2 Jaret · 2 Sarah</div>
+      </div>
+      <div class="pcell">
+        <div class="month">Jul 2026</div>
+        <div class="amt">$15,940</div>
+        <div class="detail">3 Jaret · 2 Sarah</div>
+      </div>
+      <div class="pcell">
+        <div class="month">Aug 2026</div>
+        <div class="amt">$12,100</div>
+        <div class="detail">2 Jaret · 2 Sarah</div>
+      </div>
+      <div class="pcell bonus">
+        <div class="month">Sep 2026</div>
+        <div class="amt">$12,100</div>
+        <div class="detail">2 Jaret · 2 Sarah</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Upcoming deposits <em>— next 30 days</em></h2>
+  </div>
+
+  <div class="upcoming">
+    <div class="up-row">
+      <div class="day"><div class="d">25</div><div class="m">Apr · Fri</div></div>
+      <div class="src"><strong>Mojo Food Group</strong><span>Jaret · biweekly payroll</span></div>
+      <div class="eta">3 days · confirmed</div>
+      <div class="amt">+$3,840.00</div>
+    </div>
+    <div class="up-row">
+      <div class="day"><div class="d">30</div><div class="m">Apr · Wed</div></div>
+      <div class="src"><strong>Sarah's Employer</strong><span>Sarah · biweekly payroll</span></div>
+      <div class="eta">8 days · confirmed</div>
+      <div class="amt">+$2,210.00</div>
+    </div>
+    <div class="up-row">
+      <div class="day"><div class="d">30</div><div class="m">Apr · Wed</div></div>
+      <div class="src"><strong>TGCS Co.</strong><span>monthly transfer · estimated</span></div>
+      <div class="eta">8 days · estimate</div>
+      <div class="amt">~$900.00</div>
+    </div>
+    <div class="up-row">
+      <div class="day"><div class="d">09</div><div class="m">May · Fri</div></div>
+      <div class="src"><strong>Mojo Food Group</strong><span>Jaret · biweekly payroll</span></div>
+      <div class="eta">17 days · confirmed</div>
+      <div class="amt">+$3,840.00</div>
+    </div>
+    <div class="up-row">
+      <div class="day"><div class="d">14</div><div class="m">May · Wed</div></div>
+      <div class="src"><strong>Sarah's Employer</strong><span>Sarah · biweekly payroll</span></div>
+      <div class="eta">22 days · confirmed</div>
+      <div class="amt">+$2,210.00</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Debts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  .debt-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+  .debt-hero .stat{background:var(--card);padding:18px 22px}
+  .debt-hero .stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .debt-hero .stat .val{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+  .debt-hero .stat .sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:6px}
+
+  .debt-list{background:var(--card);border:1px solid var(--line);margin-bottom:32px}
+  .debt-card{display:grid;grid-template-columns:280px 1fr 160px;padding:20px 24px;border-bottom:1px solid var(--line);gap:24px;align-items:center}
+  .debt-card:last-child{border-bottom:none}
+  .debt-card:hover{background:var(--bg)}
+  .debt-meta{display:flex;flex-direction:column;gap:4px}
+  .debt-meta h4{font-family:'Fraunces',serif;font-size:20px;font-weight:400;letter-spacing:-0.3px}
+  .debt-meta .acct{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px}
+  .debt-meta .chips{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .debt-meta .chips span{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 8px;border:1px solid var(--line);color:var(--ink-2);border-radius:var(--radius)}
+  .debt-meta .chips .apr-high{color:var(--danger);border-color:var(--danger);font-weight:600}
+  .debt-meta .chips .apr-mid{color:var(--accent-3);border-color:var(--accent-3)}
+
+  .debt-progress{display:flex;flex-direction:column;gap:8px}
+  .progress-row{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:11px}
+  .progress-row .used{color:var(--ink);font-weight:600}
+  .progress-row .limit{color:var(--ink-3)}
+  .progress-bar{height:6px;background:var(--bg-2);border-radius:3px;overflow:hidden;position:relative}
+  .progress-bar .fill{height:100%;background:var(--accent-2);border-radius:3px}
+  .progress-bar .fill.high{background:var(--danger)}
+  .progress-bar .fill.mid{background:var(--accent-3)}
+  .debt-details{display:flex;gap:16px;margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3)}
+  .debt-details span strong{color:var(--ink);font-weight:500}
+
+  .debt-balance{text-align:right}
+  .debt-balance .big{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-0.5px;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent-2)}
+  .debt-balance .small{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:4px}
+
+  .debt-foot{padding:16px 24px;background:var(--bg-2);border-top:1px solid var(--line);display:grid;grid-template-columns:280px 1fr 160px;gap:24px;align-items:center;font-family:'JetBrains Mono',monospace}
+  .debt-foot .label{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .debt-foot .stats{display:flex;gap:20px;font-size:12px;color:var(--ink-2)}
+  .debt-foot .stats strong{color:var(--ink)}
+  .debt-foot .total{font-family:'Fraunces',serif;font-size:26px;font-weight:400;text-align:right;color:var(--accent-2);letter-spacing:-0.3px}
+
+  /* scenarios */
+  .scenarios{background:var(--card);border:1px solid var(--line);margin-bottom:32px}
+  .scenario-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+  .scenario{background:var(--card);padding:24px;display:flex;flex-direction:column;gap:10px}
+  .scenario.featured{background:#fff6e8;position:relative}
+  .scenario.featured::before{content:'RECOMMENDED';position:absolute;top:14px;right:18px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:600}
+  .scenario .name{font-family:'Fraunces',serif;font-size:22px;font-weight:400;letter-spacing:-0.3px}
+  .scenario .desc{font-size:12px;color:var(--ink-3);line-height:1.5;min-height:48px}
+  .scenario .metric{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:12px}
+  .scenario .metric:first-of-type{border-top:none}
+  .scenario .metric .k{color:var(--ink-3)}
+  .scenario .metric .v{color:var(--ink);font-weight:600}
+  .scenario .metric .v.good{color:var(--success)}
+  .scenario .cta{margin-top:auto;padding-top:12px}
+  .scenario .cta button{width:100%}
+
+  @media(max-width:900px){
+    .debt-hero{grid-template-columns:repeat(2,1fr)}
+    .debt-card,.debt-foot{grid-template-columns:1fr;gap:14px}
+    .debt-balance{text-align:left}
+    .scenario-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html" class="active">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Debts <em>— the dragons</em></h1>
+    <div class="meta">
+      <div class="date">Updated Apr 22 · 04:12 AM</div>
+      <div>Auto-synced via Plaid</div>
+    </div>
+  </div>
+
+  <div class="debt-hero">
+    <div class="stat">
+      <div class="label">Total Balance</div>
+      <div class="val" style="color:var(--accent-2)">$48,320</div>
+      <div class="sub">across 7 accounts</div>
+    </div>
+    <div class="stat">
+      <div class="label">Blended APR</div>
+      <div class="val">12.4%</div>
+      <div class="sub">weighted average</div>
+    </div>
+    <div class="stat">
+      <div class="label">Monthly Minimums</div>
+      <div class="val">$2,140</div>
+      <div class="sub">across all accounts</div>
+    </div>
+    <div class="stat">
+      <div class="label">Interest This Month</div>
+      <div class="val" style="color:var(--danger)">$498</div>
+      <div class="sub">if only minimums paid</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Accounts <em>— sorted by APR</em></h2>
+    <div class="controls">
+      <button class="chip active">By APR</button>
+      <button class="chip">By Balance</button>
+      <button class="chip">By Due Date</button>
+      <button class="btn-primary">+ Add debt</button>
+    </div>
+  </div>
+
+  <div class="debt-list">
+
+    <div class="debt-card">
+      <div class="debt-meta">
+        <h4>TD Visa</h4>
+        <div class="acct">····4291 · Credit Card</div>
+        <div class="chips">
+          <span class="apr-high">22.9% APR</span>
+          <span>Min $620/mo</span>
+          <span>Due 28th</span>
+        </div>
+      </div>
+      <div class="debt-progress">
+        <div class="progress-row">
+          <span class="used">$8,420 used</span>
+          <span class="limit">of $10,000 limit</span>
+        </div>
+        <div class="progress-bar"><div class="fill high" style="width:84%"></div></div>
+        <div class="debt-details">
+          <span>Utilization <strong>84%</strong></span>
+          <span>Interest/mo <strong>$160</strong></span>
+          <span>Statement <strong>May 2</strong></span>
+        </div>
+      </div>
+      <div class="debt-balance">
+        <div class="big">$8,420</div>
+        <div class="small">−$280 this month</div>
+      </div>
+    </div>
+
+    <div class="debt-card">
+      <div class="debt-meta">
+        <h4>Amex Cobalt</h4>
+        <div class="acct">····0018 · Credit Card</div>
+        <div class="chips">
+          <span class="apr-high">21.0% APR</span>
+          <span>Min $410/mo</span>
+          <span>Due 12th</span>
+        </div>
+      </div>
+      <div class="debt-progress">
+        <div class="progress-row">
+          <span class="used">$5,210 used</span>
+          <span class="limit">of $8,000 limit</span>
+        </div>
+        <div class="progress-bar"><div class="fill high" style="width:65%"></div></div>
+        <div class="debt-details">
+          <span>Utilization <strong>65%</strong></span>
+          <span>Interest/mo <strong>$91</strong></span>
+          <span>Statement <strong>Apr 28</strong></span>
+        </div>
+      </div>
+      <div class="debt-balance">
+        <div class="big">$5,210</div>
+        <div class="small">−$140 this month</div>
+      </div>
+    </div>
+
+    <div class="debt-card">
+      <div class="debt-meta">
+        <h4>TD Line of Credit</h4>
+        <div class="acct">Unsecured · Revolving</div>
+        <div class="chips">
+          <span class="apr-mid">9.4% APR</span>
+          <span>Min $350/mo</span>
+          <span>Due 15th</span>
+        </div>
+      </div>
+      <div class="debt-progress">
+        <div class="progress-row">
+          <span class="used">$12,800 used</span>
+          <span class="limit">of $20,000 limit</span>
+        </div>
+        <div class="progress-bar"><div class="fill mid" style="width:64%"></div></div>
+        <div class="debt-details">
+          <span>Utilization <strong>64%</strong></span>
+          <span>Interest/mo <strong>$100</strong></span>
+          <span>Statement <strong>Apr 30</strong></span>
+        </div>
+      </div>
+      <div class="debt-balance">
+        <div class="big">$12,800</div>
+        <div class="small">−$250 this month</div>
+      </div>
+    </div>
+
+    <div class="debt-card">
+      <div class="debt-meta">
+        <h4>Car loan · RBC</h4>
+        <div class="acct">Installment · 36 mo remaining</div>
+        <div class="chips">
+          <span>6.8% APR</span>
+          <span>Min $485/mo</span>
+          <span>Due 6th</span>
+        </div>
+      </div>
+      <div class="debt-progress">
+        <div class="progress-row">
+          <span class="used">$14,200 remaining</span>
+          <span class="limit">of $24,000 original</span>
+        </div>
+        <div class="progress-bar"><div class="fill" style="width:59%"></div></div>
+        <div class="debt-details">
+          <span>Paid <strong>41%</strong></span>
+          <span>Interest/mo <strong>$80</strong></span>
+          <span>Payoff <strong>Apr 2029</strong></span>
+        </div>
+      </div>
+      <div class="debt-balance">
+        <div class="big">$14,200</div>
+        <div class="small">−$405 this month</div>
+      </div>
+    </div>
+
+    <div class="debt-card">
+      <div class="debt-meta">
+        <h4>Student loan · OSAP</h4>
+        <div class="acct">Federal · Fixed</div>
+        <div class="chips">
+          <span>5.2% APR</span>
+          <span>Min $275/mo</span>
+          <span>Due 22nd</span>
+        </div>
+      </div>
+      <div class="debt-progress">
+        <div class="progress-row">
+          <span class="used">$7,690 remaining</span>
+          <span class="limit">of $22,000 original</span>
+        </div>
+        <div class="progress-bar"><div class="fill" style="width:35%"></div></div>
+        <div class="debt-details">
+          <span>Paid <strong>65%</strong></span>
+          <span>Interest/mo <strong>$33</strong></span>
+          <span>Payoff <strong>Dec 2028</strong></span>
+        </div>
+      </div>
+      <div class="debt-balance">
+        <div class="big">$7,690</div>
+        <div class="small">−$242 this month</div>
+      </div>
+    </div>
+
+    <div class="debt-foot">
+      <div class="label">Totals · all accounts</div>
+      <div class="stats">
+        <span>Avg APR <strong>12.4%</strong></span>
+        <span>Total min <strong>$2,140/mo</strong></span>
+        <span>Monthly interest <strong>$498</strong></span>
+      </div>
+      <div class="total">$48,320</div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Payoff scenarios <em>— based on your surplus ($1,890/mo)</em></h2>
+  </div>
+
+  <div class="scenarios">
+    <div class="scenario-grid">
+
+      <div class="scenario">
+        <div class="name">Minimums only</div>
+        <div class="desc">Pay just the required minimums. The interest compounds and the journey gets long.</div>
+        <div class="metric"><span class="k">Debt-free in</span><span class="v" style="color:var(--danger)">7.2 years</span></div>
+        <div class="metric"><span class="k">Interest paid</span><span class="v" style="color:var(--danger)">$18,420</span></div>
+        <div class="metric"><span class="k">Monthly payment</span><span class="v">$2,140</span></div>
+        <div class="cta"><button class="btn-ghost" style="width:100%">View plan</button></div>
+      </div>
+
+      <div class="scenario featured">
+        <div class="name">Avalanche</div>
+        <div class="desc">Attack the highest-APR card first. Mathematically optimal — saves the most interest.</div>
+        <div class="metric"><span class="k">Debt-free in</span><span class="v good">3.1 years</span></div>
+        <div class="metric"><span class="k">Interest paid</span><span class="v good">$6,840</span></div>
+        <div class="metric"><span class="k">Monthly payment</span><span class="v">$4,030</span></div>
+        <div class="metric"><span class="k">Saves you</span><span class="v good">$11,580</span></div>
+        <div class="cta"><button class="btn-primary" style="width:100%">Use this plan</button></div>
+      </div>
+
+      <div class="scenario">
+        <div class="name">Snowball</div>
+        <div class="desc">Knock out smallest balances first. Slower overall but builds momentum and wins.</div>
+        <div class="metric"><span class="k">Debt-free in</span><span class="v">3.4 years</span></div>
+        <div class="metric"><span class="k">Interest paid</span><span class="v">$7,910</span></div>
+        <div class="metric"><span class="k">Monthly payment</span><span class="v">$4,030</span></div>
+        <div class="metric"><span class="k">First win</span><span class="v good">Amex · 14 months</span></div>
+        <div class="cta"><button class="btn-ghost" style="width:100%">View plan</button></div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

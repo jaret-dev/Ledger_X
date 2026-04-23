@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Transactions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  .filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:20px;padding:12px 16px;background:var(--card);border:1px solid var(--line);flex-wrap:wrap}
+  .search{flex:1;min-width:200px;position:relative}
+  .search input{width:100%;padding:8px 12px 8px 32px;background:var(--bg);border:1px solid var(--line);font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink);border-radius:var(--radius);outline:none}
+  .search input:focus{border-color:var(--ink)}
+  .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+  .filter-bar .divider{width:1px;height:20px;background:var(--line)}
+
+  .txn-table{background:var(--card);border:1px solid var(--line);overflow:hidden}
+  .txn-date-head{padding:10px 20px;background:var(--bg-2);border-bottom:1px solid var(--line);border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .txn-date-head:first-child{border-top:none}
+  .txn-date-head .day-total{color:var(--ink);font-weight:500}
+  .txn-date-head .day-total.neg{color:var(--danger)}
+
+  .txn-row{display:grid;grid-template-columns:16px 1fr 120px 100px 110px;gap:14px;align-items:center;padding:11px 20px;border-bottom:1px solid var(--line);font-size:13px}
+  .txn-row:hover{background:var(--bg)}
+  .txn-row .merchant{display:flex;flex-direction:column;gap:1px}
+  .txn-row .merchant strong{font-weight:500}
+  .txn-row .merchant span{font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
+  .txn-row .account{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px}
+  .txn-row .amt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;text-align:right}
+  .txn-row .amt.pos{color:var(--success)}
+
+  .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:24px}
+  .summary-stat{background:var(--card);padding:14px 18px}
+  .summary-stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .summary-stat .val{font-family:'Fraunces',serif;font-size:22px;font-weight:300;letter-spacing:-0.3px;margin-top:4px;line-height:1}
+  .summary-stat .sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);margin-top:4px}
+
+  @media(max-width:900px){
+    .summary-row{grid-template-columns:repeat(2,1fr)}
+    .txn-row{grid-template-columns:12px 1fr 80px;font-size:12px}
+    .txn-row .account{display:none}
+    .txn-row .tag{display:none}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html" class="active">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Transactions <em>— last 30 days</em></h1>
+    <div class="meta">
+      <div class="date">Mar 23 → Apr 22 · 2026</div>
+      <div>142 transactions · 8 accounts</div>
+    </div>
+  </div>
+
+  <div class="summary-row">
+    <div class="summary-stat">
+      <div class="label">Money In</div>
+      <div class="val" style="color:var(--success)">+$6,050</div>
+      <div class="sub">3 deposits</div>
+    </div>
+    <div class="summary-stat">
+      <div class="label">Money Out</div>
+      <div class="val" style="color:var(--danger)">−$4,810</div>
+      <div class="sub">139 charges</div>
+    </div>
+    <div class="summary-stat">
+      <div class="label">Net 30d</div>
+      <div class="val">+$1,240</div>
+      <div class="sub">trending positive</div>
+    </div>
+    <div class="summary-stat">
+      <div class="label">Avg Daily Spend</div>
+      <div class="val">$160</div>
+      <div class="sub">vs $148 prev month</div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" placeholder="Search merchant, category, or amount…">
+    </div>
+    <div class="divider"></div>
+    <button class="chip active">All</button>
+    <button class="chip">Income</button>
+    <button class="chip">Bills</button>
+    <button class="chip">Debt</button>
+    <button class="chip">Budgets</button>
+    <div class="divider"></div>
+    <button class="chip">All accounts ▾</button>
+    <button class="chip">30 days ▾</button>
+    <button class="btn-ghost" style="margin-left:auto">Export CSV</button>
+  </div>
+
+  <div class="txn-table">
+
+    <div class="txn-date-head">
+      <span>Today · Wed Apr 22</span>
+      <span class="day-total neg">−$84.20</span>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Loblaws</strong><span>groceries · downtown</span></div>
+      <div class="tag budget">Groceries</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$62.40</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Starbucks</strong><span>coffee shop · king st</span></div>
+      <div class="tag budget">Dining</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$7.80</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Esso</strong><span>fuel · bloor</span></div>
+      <div class="tag budget">Gas</div>
+      <div class="account">TD Visa ····4291</div>
+      <div class="amt">−$14.00</div>
+    </div>
+
+    <div class="txn-date-head">
+      <span>Yesterday · Tue Apr 21</span>
+      <span class="day-total neg">−$215.40</span>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Home Depot</strong><span>hardware · scarborough</span></div>
+      <div class="tag budget">Household</div>
+      <div class="account">TD Visa ····4291</div>
+      <div class="amt">−$142.30</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Metro</strong><span>groceries · leslieville</span></div>
+      <div class="tag budget">Groceries</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$48.10</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Tim Hortons</strong><span>coffee · 401 & yonge</span></div>
+      <div class="tag budget">Dining</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$8.40</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>LCBO</strong><span>bloor west</span></div>
+      <div class="tag budget">Entertainment</div>
+      <div class="account">TD Visa ····4291</div>
+      <div class="amt">−$16.60</div>
+    </div>
+
+    <div class="txn-date-head">
+      <span>Mon Apr 20</span>
+      <span class="day-total neg">−$178.25</span>
+    </div>
+    <div class="txn-row">
+      <div class="bar bill"></div>
+      <div class="merchant"><strong>Bell Canada</strong><span>phone · autopay</span></div>
+      <div class="tag bill">Phone</div>
+      <div class="account">TD Chq ····8842</div>
+      <div class="amt">−$89.50</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Shoppers Drug Mart</strong><span>toronto</span></div>
+      <div class="tag budget">Household</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$42.15</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Uber</strong><span>ride · yorkville</span></div>
+      <div class="tag budget">Transport</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$22.60</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>No Frills</strong><span>groceries · east york</span></div>
+      <div class="tag budget">Groceries</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$24.00</div>
+    </div>
+
+    <div class="txn-date-head">
+      <span>Sun Apr 19</span>
+      <span class="day-total neg">−$96.80</span>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Pizza Libretto</strong><span>dinner with Sarah</span></div>
+      <div class="tag budget">Dining</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$74.20</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Petro-Canada</strong><span>fuel · qew</span></div>
+      <div class="tag budget">Gas</div>
+      <div class="account">TD Visa ····4291</div>
+      <div class="amt">−$22.60</div>
+    </div>
+
+    <div class="txn-date-head">
+      <span>Fri Apr 17</span>
+      <span class="day-total" style="color:var(--success)">+$3,755.80</span>
+    </div>
+    <div class="txn-row">
+      <div class="bar income"></div>
+      <div class="merchant"><strong>MOJO FOOD GROUP</strong><span>payroll deposit</span></div>
+      <div class="tag income">Income</div>
+      <div class="account">TD Chq ····8842</div>
+      <div class="amt pos">+$3,840.00</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Starbucks</strong><span>coffee · bay st</span></div>
+      <div class="tag budget">Dining</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$6.40</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Indigo</strong><span>books · yorkdale</span></div>
+      <div class="tag budget">Entertainment</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$32.80</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Metro</strong><span>groceries · danforth</span></div>
+      <div class="tag budget">Groceries</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$45.00</div>
+    </div>
+
+    <div class="txn-date-head">
+      <span>Thu Apr 16</span>
+      <span class="day-total neg">−$755.00</span>
+    </div>
+    <div class="txn-row">
+      <div class="bar debt"></div>
+      <div class="merchant"><strong>TD Visa payment</strong><span>from chequing</span></div>
+      <div class="tag debt">Debt</div>
+      <div class="account">TD Chq ····8842</div>
+      <div class="amt">−$620.00</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar budget"></div>
+      <div class="merchant"><strong>Costco</strong><span>groceries + gas</span></div>
+      <div class="tag budget">Groceries</div>
+      <div class="account">Amex ····0018</div>
+      <div class="amt">−$135.00</div>
+    </div>
+
+    <div class="txn-date-head">
+      <span>Wed Apr 15</span>
+      <span class="day-total" style="color:var(--success)">+$2,150.40</span>
+    </div>
+    <div class="txn-row">
+      <div class="bar income"></div>
+      <div class="merchant"><strong>SARAH EMPLOYER</strong><span>payroll deposit</span></div>
+      <div class="tag income">Income</div>
+      <div class="account">TD Chq ····8842</div>
+      <div class="amt pos">+$2,210.00</div>
+    </div>
+    <div class="txn-row">
+      <div class="bar bill"></div>
+      <div class="merchant"><strong>Rogers</strong><span>internet · autopay</span></div>
+      <div class="tag bill">Internet</div>
+      <div class="account">TD Chq ····8842</div>
+      <div class="amt">−$59.60</div>
+    </div>
+
+    <div style="padding:20px;text-align:center">
+      <button class="btn-ghost">Load 30 more · 122 remaining</button>
+    </div>
+
+  </div>
+
+</main>
+</body>
+</html>

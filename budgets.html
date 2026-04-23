@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Budgets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  .budget-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+  .budget-hero .stat{background:var(--card);padding:18px 22px}
+  .budget-hero .stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .budget-hero .stat .val{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+  .budget-hero .stat .sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:6px}
+
+  .cycle-bar{background:var(--card);border:1px solid var(--line);padding:16px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center}
+  .cycle-bar .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:4px}
+  .cycle-bar .cycle-info h3{font-family:'Fraunces',serif;font-size:22px;font-weight:400;letter-spacing:-0.3px}
+  .cycle-bar .progress{flex:1;max-width:500px;margin:0 32px}
+  .cycle-bar .progress-bar{height:6px;background:var(--bg-2);border-radius:3px;overflow:hidden}
+  .cycle-bar .progress-bar .fill{height:100%;background:var(--ink);border-radius:3px}
+  .cycle-bar .progress-info{display:flex;justify-content:space-between;margin-top:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3)}
+
+  .budget-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:32px}
+  .budget-card{background:var(--card);border:1px solid var(--line);padding:22px 24px;display:flex;flex-direction:column;gap:14px}
+  .budget-card-head{display:flex;justify-content:space-between;align-items:flex-start}
+  .budget-card-head h4{font-family:'Fraunces',serif;font-size:22px;font-weight:400;letter-spacing:-0.3px}
+  .budget-card-head h4 em{font-style:italic;color:var(--ink-3);font-weight:300;font-size:14px;display:block;margin-top:2px}
+  .budget-card-head .status{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;padding:3px 8px;border-radius:var(--radius)}
+  .budget-card-head .status.good{background:rgba(45,90,61,0.1);color:var(--success)}
+  .budget-card-head .status.warn{background:rgba(139,111,47,0.1);color:var(--accent-3)}
+  .budget-card-head .status.over{background:rgba(160,54,26,0.1);color:var(--danger)}
+
+  .budget-numbers{display:flex;justify-content:space-between;align-items:baseline}
+  .budget-numbers .big{font-family:'Fraunces',serif;font-size:34px;font-weight:300;letter-spacing:-0.5px;line-height:1;font-variant-numeric:tabular-nums}
+  .budget-numbers .big em{font-style:normal;color:var(--ink-3);font-size:18px}
+  .budget-numbers .pace{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3)}
+  .budget-numbers .pace strong{color:var(--ink)}
+
+  .budget-card .progress-track{height:8px;background:var(--bg-2);border-radius:4px;overflow:hidden;position:relative}
+  .budget-card .progress-track .fill{height:100%;background:var(--accent-4);border-radius:4px;transition:width .3s}
+  .budget-card .progress-track .fill.warn{background:var(--accent-3)}
+  .budget-card .progress-track .fill.over{background:var(--danger)}
+  .budget-card .progress-track .marker{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink-3);opacity:.5}
+
+  .budget-split{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .budget-split .cell{display:flex;flex-direction:column;gap:2px}
+  .budget-split .cell .k{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .budget-split .cell .v{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600}
+  .budget-split .cell .v.danger{color:var(--danger)}
+  .budget-split .cell .v.success{color:var(--success)}
+
+  .recent-txns{padding-top:12px;border-top:1px solid var(--line)}
+  .recent-txns .rt-label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px}
+  .recent-txns .rt{display:grid;grid-template-columns:1fr auto;gap:12px;padding:5px 0;font-size:12px}
+  .recent-txns .rt .merchant{color:var(--ink-2)}
+  .recent-txns .rt .merchant span{color:var(--ink-3);font-family:'JetBrains Mono',monospace;font-size:10px;margin-left:6px}
+  .recent-txns .rt .amt{font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--ink)}
+
+  .add-card{display:flex;align-items:center;justify-content:center;border:1px dashed var(--line-2);background:transparent;min-height:220px;cursor:pointer;color:var(--ink-3);flex-direction:column;gap:8px}
+  .add-card:hover{border-color:var(--ink);color:var(--ink);background:var(--bg)}
+  .add-card .plus{font-size:32px;font-weight:300;font-family:'Fraunces',serif}
+  .add-card .lbl{font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.5px}
+
+  @media(max-width:900px){
+    .budget-hero{grid-template-columns:repeat(2,1fr)}
+    .budget-grid{grid-template-columns:1fr}
+    .cycle-bar{flex-direction:column;align-items:flex-start;gap:16px}
+    .cycle-bar .progress{margin:0;max-width:100%;width:100%}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html" class="active">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Budgets <em>— the variable stuff</em></h1>
+    <div class="meta">
+      <div class="date">Apr 2026 cycle · day 22 of 30</div>
+      <div>6 active envelopes</div>
+    </div>
+  </div>
+
+  <div class="budget-hero">
+    <div class="stat">
+      <div class="label">Total Budgeted</div>
+      <div class="val">$1,050</div>
+      <div class="sub">this cycle</div>
+    </div>
+    <div class="stat">
+      <div class="label">Spent So Far</div>
+      <div class="val">$881</div>
+      <div class="sub">84% of total</div>
+    </div>
+    <div class="stat">
+      <div class="label">Remaining</div>
+      <div class="val" style="color:var(--success)">$169</div>
+      <div class="sub">for 9 more days</div>
+    </div>
+    <div class="stat">
+      <div class="label">Pace</div>
+      <div class="val" style="color:var(--accent-3)">+3%</div>
+      <div class="sub">slightly over pace</div>
+    </div>
+  </div>
+
+  <div class="cycle-bar">
+    <div class="cycle-info">
+      <div class="label">Cycle</div>
+      <h3>Apr 1 → Apr 30</h3>
+    </div>
+    <div class="progress">
+      <div class="progress-bar"><div class="fill" style="width:73%"></div></div>
+      <div class="progress-info">
+        <span>Day 22 of 30</span>
+        <span>73% through</span>
+        <span>8 days left</span>
+      </div>
+    </div>
+    <button class="btn-primary">+ Add envelope</button>
+  </div>
+
+  <div class="budget-grid">
+
+    <div class="budget-card">
+      <div class="budget-card-head">
+        <h4>Groceries <em>essentials · paired with Costco run</em></h4>
+        <span class="status good">On track</span>
+      </div>
+      <div class="budget-numbers">
+        <div class="big">$312<em> / $400</em></div>
+        <div class="pace">Pace: <strong>on target</strong><br>avg $14.20/day</div>
+      </div>
+      <div class="progress-track">
+        <div class="fill" style="width:78%"></div>
+        <div class="marker" style="left:73%"></div>
+      </div>
+      <div class="budget-split">
+        <div class="cell"><div class="k">Used</div><div class="v">$312</div></div>
+        <div class="cell"><div class="k">Remaining</div><div class="v success">$88</div></div>
+        <div class="cell"><div class="k">Daily allow.</div><div class="v">$9.78</div></div>
+      </div>
+      <div class="recent-txns">
+        <div class="rt-label">Recent charges</div>
+        <div class="rt"><div class="merchant">Loblaws<span>today</span></div><div class="amt">$62.40</div></div>
+        <div class="rt"><div class="merchant">Metro<span>yesterday</span></div><div class="amt">$48.10</div></div>
+        <div class="rt"><div class="merchant">Costco<span>6 days ago</span></div><div class="amt">$135.00</div></div>
+      </div>
+    </div>
+
+    <div class="budget-card">
+      <div class="budget-card-head">
+        <h4>Gas <em>fuel · both cars</em></h4>
+        <span class="status good">On track</span>
+      </div>
+      <div class="budget-numbers">
+        <div class="big">$124<em> / $180</em></div>
+        <div class="pace">Pace: <strong>under</strong><br>Sarah WFH helping</div>
+      </div>
+      <div class="progress-track">
+        <div class="fill" style="width:69%"></div>
+        <div class="marker" style="left:73%"></div>
+      </div>
+      <div class="budget-split">
+        <div class="cell"><div class="k">Used</div><div class="v">$124</div></div>
+        <div class="cell"><div class="k">Remaining</div><div class="v success">$56</div></div>
+        <div class="cell"><div class="k">Fill-ups</div><div class="v">4</div></div>
+      </div>
+      <div class="recent-txns">
+        <div class="rt-label">Recent charges</div>
+        <div class="rt"><div class="merchant">Esso<span>today</span></div><div class="amt">$14.00</div></div>
+        <div class="rt"><div class="merchant">Petro-Canada<span>3 days ago</span></div><div class="amt">$22.60</div></div>
+        <div class="rt"><div class="merchant">Shell<span>1 week ago</span></div><div class="amt">$55.40</div></div>
+      </div>
+    </div>
+
+    <div class="budget-card">
+      <div class="budget-card-head">
+        <h4>Dining + Coffee <em>restaurants · takeout · cafes</em></h4>
+        <span class="status warn">Tight</span>
+      </div>
+      <div class="budget-numbers">
+        <div class="big">$142<em> / $150</em></div>
+        <div class="pace">Pace: <strong style="color:var(--accent-3)">ahead by 21%</strong><br>will go over</div>
+      </div>
+      <div class="progress-track">
+        <div class="fill warn" style="width:95%"></div>
+        <div class="marker" style="left:73%"></div>
+      </div>
+      <div class="budget-split">
+        <div class="cell"><div class="k">Used</div><div class="v">$142</div></div>
+        <div class="cell"><div class="k">Remaining</div><div class="v" style="color:var(--accent-3)">$8</div></div>
+        <div class="cell"><div class="k">Daily allow.</div><div class="v">$0.89</div></div>
+      </div>
+      <div class="recent-txns">
+        <div class="rt-label">Recent charges</div>
+        <div class="rt"><div class="merchant">Pizza Libretto<span>3 days ago</span></div><div class="amt">$74.20</div></div>
+        <div class="rt"><div class="merchant">Starbucks<span>today</span></div><div class="amt">$7.80</div></div>
+        <div class="rt"><div class="merchant">Tim Hortons<span>yesterday</span></div><div class="amt">$8.40</div></div>
+      </div>
+    </div>
+
+    <div class="budget-card">
+      <div class="budget-card-head">
+        <h4>Entertainment <em>movies · concerts · books · LCBO</em></h4>
+        <span class="status good">On track</span>
+      </div>
+      <div class="budget-numbers">
+        <div class="big">$88<em> / $120</em></div>
+        <div class="pace">Pace: <strong>right on</strong><br>$1.45 under pace</div>
+      </div>
+      <div class="progress-track">
+        <div class="fill" style="width:73%"></div>
+        <div class="marker" style="left:73%"></div>
+      </div>
+      <div class="budget-split">
+        <div class="cell"><div class="k">Used</div><div class="v">$88</div></div>
+        <div class="cell"><div class="k">Remaining</div><div class="v success">$32</div></div>
+        <div class="cell"><div class="k">Events</div><div class="v">5</div></div>
+      </div>
+      <div class="recent-txns">
+        <div class="rt-label">Recent charges</div>
+        <div class="rt"><div class="merchant">Indigo<span>5 days ago</span></div><div class="amt">$32.80</div></div>
+        <div class="rt"><div class="merchant">LCBO<span>yesterday</span></div><div class="amt">$16.60</div></div>
+        <div class="rt"><div class="merchant">Cineplex<span>2 weeks ago</span></div><div class="amt">$28.40</div></div>
+      </div>
+    </div>
+
+    <div class="budget-card">
+      <div class="budget-card-head">
+        <h4>Household <em>home goods · repairs · supplies</em></h4>
+        <span class="status over">Over</span>
+      </div>
+      <div class="budget-numbers">
+        <div class="big" style="color:var(--danger)">$215<em style="color:var(--ink-3)"> / $200</em></div>
+        <div class="pace" style="color:var(--danger)">Over by <strong>$15</strong><br>Home Depot yesterday</div>
+      </div>
+      <div class="progress-track">
+        <div class="fill over" style="width:100%"></div>
+        <div class="marker" style="left:73%"></div>
+      </div>
+      <div class="budget-split">
+        <div class="cell"><div class="k">Used</div><div class="v">$215</div></div>
+        <div class="cell"><div class="k">Over</div><div class="v danger">−$15</div></div>
+        <div class="cell"><div class="k">Trend</div><div class="v danger">up 30%</div></div>
+      </div>
+      <div class="recent-txns">
+        <div class="rt-label">Recent charges</div>
+        <div class="rt"><div class="merchant">Home Depot<span>yesterday</span></div><div class="amt">$142.30</div></div>
+        <div class="rt"><div class="merchant">Shoppers<span>2 days ago</span></div><div class="amt">$42.15</div></div>
+        <div class="rt"><div class="merchant">IKEA<span>1 week ago</span></div><div class="amt">$30.55</div></div>
+      </div>
+    </div>
+
+    <div class="budget-card">
+      <div class="budget-card-head">
+        <h4>Transport <em>uber · lyft · parking · transit</em></h4>
+        <span class="status good">Under</span>
+      </div>
+      <div class="budget-numbers">
+        <div class="big">$0<em> / $100</em></div>
+        <div class="pace">Pace: <strong style="color:var(--success)">well under</strong><br>only 1 uber so far</div>
+      </div>
+      <div class="progress-track">
+        <div class="fill" style="width:22%"></div>
+        <div class="marker" style="left:73%"></div>
+      </div>
+      <div class="budget-split">
+        <div class="cell"><div class="k">Used</div><div class="v">$22.60</div></div>
+        <div class="cell"><div class="k">Remaining</div><div class="v success">$77.40</div></div>
+        <div class="cell"><div class="k">Rides</div><div class="v">1</div></div>
+      </div>
+      <div class="recent-txns">
+        <div class="rt-label">Recent charges</div>
+        <div class="rt"><div class="merchant">Uber<span>2 days ago</span></div><div class="amt">$22.60</div></div>
+        <div class="rt" style="color:var(--ink-3)"><div class="merchant">No other charges this cycle</div><div class="amt"></div></div>
+      </div>
+    </div>
+
+    <div class="add-card">
+      <div class="plus">+</div>
+      <div class="lbl">Add envelope</div>
+    </div>
+
+  </div>
+
+</main>
+</body>
+</html>

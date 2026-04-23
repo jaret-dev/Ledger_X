@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Ad-Hoc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  .adhoc-hero{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+  .adhoc-hero .stat{background:var(--card);padding:18px 22px}
+  .adhoc-hero .stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .adhoc-hero .stat .val{font-family:'Fraunces',serif;font-size:28px;font-weight:300;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+  .adhoc-hero .stat .sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);margin-top:6px}
+
+  /* Group by proximity */
+  .time-group{margin-bottom:32px}
+  .time-group-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .time-group-head h3{font-family:'Fraunces',serif;font-size:18px;font-weight:400;letter-spacing:-0.3px}
+  .time-group-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+  .time-group-head .tot{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-3)}
+  .time-group-head .tot strong{color:var(--ink);font-weight:600}
+
+  .adhoc-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .adhoc-item{background:var(--card);border:1px solid var(--line);padding:18px 20px;display:flex;flex-direction:column;gap:8px;position:relative;transition:all .15s}
+  .adhoc-item:hover{border-color:var(--line-2);background:var(--bg)}
+  .adhoc-item .when-row{display:flex;justify-content:space-between;align-items:center}
+  .adhoc-item .when{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:600}
+  .adhoc-item .when.soon{color:var(--danger)}
+  .adhoc-item .when.later{color:var(--ink-3)}
+  .adhoc-item .cat{font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);padding:2px 7px;border:1px solid var(--line);border-radius:var(--radius)}
+  .adhoc-item .what{font-family:'Fraunces',serif;font-size:20px;font-weight:400;line-height:1.2;letter-spacing:-0.3px;margin:2px 0}
+  .adhoc-item .note{font-size:12px;color:var(--ink-2);line-height:1.5}
+  .adhoc-item .foot{display:flex;justify-content:space-between;align-items:baseline;margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+  .adhoc-item .amt{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600}
+  .adhoc-item .method{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1px}
+  .adhoc-item .status-dot{position:absolute;top:12px;right:12px;width:6px;height:6px;border-radius:50%}
+  .adhoc-item .status-dot.funded{background:var(--success)}
+  .adhoc-item .status-dot.pending{background:var(--accent-3)}
+  .adhoc-item .status-dot.unfunded{background:var(--ink-3)}
+
+  .add-card{display:flex;align-items:center;justify-content:center;border:1px dashed var(--line-2);background:transparent;min-height:180px;cursor:pointer;color:var(--ink-3);flex-direction:column;gap:6px;transition:all .15s}
+  .add-card:hover{border-color:var(--ink);color:var(--ink);background:var(--bg)}
+  .add-card .plus{font-size:28px;font-weight:300;font-family:'Fraunces',serif;line-height:1}
+  .add-card .lbl{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px}
+
+  /* Category breakdown */
+  .cat-breakdown{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:32px}
+  .cat-panel{background:var(--card);border:1px solid var(--line)}
+  .cat-row{display:grid;grid-template-columns:14px 1fr 60px 90px;gap:14px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px}
+  .cat-row:last-child{border-bottom:none}
+  .cat-row:hover{background:var(--bg)}
+  .cat-row .dot{width:8px;height:8px;border-radius:50%}
+  .cat-row .name{font-weight:500}
+  .cat-row .count{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);text-align:right}
+  .cat-row .amt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;text-align:right}
+
+  /* Quick add form */
+  .quick-add{background:var(--card);border:1px solid var(--line);padding:24px}
+  .quick-add h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px;margin-bottom:16px}
+  .qa-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .qa-field label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .qa-field input,.qa-field select,.qa-field textarea{padding:8px 10px;background:var(--bg);border:1px solid var(--line);font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink);border-radius:var(--radius);outline:none;width:100%}
+  .qa-field input:focus,.qa-field select:focus,.qa-field textarea:focus{border-color:var(--ink)}
+  .qa-field textarea{resize:vertical;min-height:60px;font-family:'Inter Tight',sans-serif}
+  .qa-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  /* Timeline strip */
+  .timeline-strip{background:var(--card);border:1px solid var(--line);padding:20px 24px;margin-bottom:32px;position:relative}
+  .ts-head{display:flex;justify-content:space-between;margin-bottom:16px;align-items:baseline}
+  .ts-head h3{font-family:'Fraunces',serif;font-size:18px;font-weight:400;letter-spacing:-0.3px}
+  .ts-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+  .ts-wrap{position:relative;height:80px;margin-top:20px}
+  .ts-line{position:absolute;top:50%;left:0;right:0;height:1px;background:var(--line-2)}
+  .ts-now{position:absolute;top:30%;bottom:30%;width:2px;background:var(--accent);left:2%}
+  .ts-now-label{position:absolute;top:-18px;left:2%;transform:translateX(-50%);font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:600}
+  .ts-event{position:absolute;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px}
+  .ts-event .ts-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);border:2px solid var(--bg)}
+  .ts-event .ts-lbl{position:absolute;top:-34px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-2);text-align:center;font-weight:500}
+  .ts-event .ts-amt{position:absolute;top:16px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+
+  @media(max-width:900px){
+    .adhoc-hero{grid-template-columns:repeat(2,1fr)}
+    .adhoc-cards{grid-template-columns:1fr}
+    .cat-breakdown{grid-template-columns:1fr}
+    .ts-event .ts-lbl{font-size:8px}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html" class="active">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Ad-Hoc <em>— one-offs on the horizon</em></h1>
+    <div class="meta">
+      <div class="date">3 upcoming · 1 past</div>
+      <div>Nearest: Connor's wedding · 18 days</div>
+    </div>
+  </div>
+
+  <div class="adhoc-hero">
+    <div class="stat">
+      <div class="label">Committed Total</div>
+      <div class="val">$950</div>
+      <div class="sub">3 upcoming events</div>
+    </div>
+    <div class="stat">
+      <div class="label">Next 30 Days</div>
+      <div class="val" style="color:var(--accent)">$470</div>
+      <div class="sub">wedding + gift</div>
+    </div>
+    <div class="stat">
+      <div class="label">Next 90 Days</div>
+      <div class="val">$950</div>
+      <div class="sub">fully covered by surplus</div>
+    </div>
+    <div class="stat">
+      <div class="label">Set Aside</div>
+      <div class="val" style="color:var(--success)">$320</div>
+      <div class="sub">wedding funded · others TBD</div>
+    </div>
+  </div>
+
+  <div class="timeline-strip">
+    <div class="ts-head">
+      <h3>On the horizon <em>— next 60 days</em></h3>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:1.5px">Apr 22 → Jun 22</span>
+    </div>
+    <div class="ts-wrap">
+      <div class="ts-line"></div>
+      <div class="ts-now"></div>
+      <div class="ts-now-label">Today</div>
+
+      <div class="ts-event" style="left:30%">
+        <div class="ts-dot"></div>
+        <div class="ts-lbl">Wedding hotel<br>May 10</div>
+        <div class="ts-amt">$320</div>
+      </div>
+
+      <div class="ts-event" style="left:53%">
+        <div class="ts-dot"></div>
+        <div class="ts-lbl">Mom's gift<br>May 24</div>
+        <div class="ts-amt">$150</div>
+      </div>
+
+      <div class="ts-event" style="left:75%">
+        <div class="ts-dot"></div>
+        <div class="ts-lbl">Brake pads<br>Jun 5</div>
+        <div class="ts-amt">$480</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Upcoming</h2>
+    <div class="controls">
+      <button class="chip active">All</button>
+      <button class="chip">Travel</button>
+      <button class="chip">Gifts</button>
+      <button class="chip">Auto</button>
+      <button class="chip">Medical</button>
+      <button class="btn-primary">+ Add one-off</button>
+    </div>
+  </div>
+
+  <!-- This month -->
+  <div class="time-group">
+    <div class="time-group-head">
+      <h3>This paycheck cycle <em>— before May 9</em></h3>
+      <div class="tot"><strong>$0</strong> · nothing scheduled</div>
+    </div>
+    <div class="adhoc-cards">
+      <div class="adhoc-item" style="opacity:0.6;justify-content:center;align-items:center;text-align:center;color:var(--ink-3);font-size:13px;border-style:dashed">
+        Nothing on the books for this cycle. Enjoy it.
+      </div>
+    </div>
+  </div>
+
+  <!-- Next 30 days -->
+  <div class="time-group">
+    <div class="time-group-head">
+      <h3>Next cycle <em>— May 9 → May 28</em></h3>
+      <div class="tot">2 items · <strong>$470</strong></div>
+    </div>
+    <div class="adhoc-cards">
+
+      <div class="adhoc-item">
+        <div class="status-dot funded" title="Funded · set aside"></div>
+        <div class="when-row">
+          <div class="when">May 10 · 18 days</div>
+          <div class="cat">Travel</div>
+        </div>
+        <div class="what">Connor's wedding · hotel</div>
+        <div class="note">Hilton Niagara · two nights · Sarah + me. Booking confirmed, card charged night-of.</div>
+        <div class="foot">
+          <div class="amt">$320.00</div>
+          <div class="method">Amex ····0018</div>
+        </div>
+      </div>
+
+      <div class="adhoc-item">
+        <div class="status-dot pending" title="Partially planned"></div>
+        <div class="when-row">
+          <div class="when">May 24 · 32 days</div>
+          <div class="cat">Gifts</div>
+        </div>
+        <div class="what">Mom's birthday gift</div>
+        <div class="note">Still deciding — leaning toward the Weber grill she's been eyeing. Set aside the cash anyway.</div>
+        <div class="foot">
+          <div class="amt">$150.00</div>
+          <div class="method">TBD</div>
+        </div>
+      </div>
+
+      <div class="add-card">
+        <div class="plus">+</div>
+        <div class="lbl">Add to this cycle</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 60-90 days -->
+  <div class="time-group">
+    <div class="time-group-head">
+      <h3>Beyond <em>— June and later</em></h3>
+      <div class="tot">1 item · <strong>$480</strong></div>
+    </div>
+    <div class="adhoc-cards">
+
+      <div class="adhoc-item">
+        <div class="status-dot unfunded" title="Not yet funded"></div>
+        <div class="when-row">
+          <div class="when later">Jun 05 · 44 days</div>
+          <div class="cat">Auto</div>
+        </div>
+        <div class="what">Brake pads · Civic</div>
+        <div class="note">Quoted at Dave's shop · includes rotor turn. Fronts only, rears still good for another year.</div>
+        <div class="foot">
+          <div class="amt">$480.00</div>
+          <div class="method">TD Visa ····4291</div>
+        </div>
+      </div>
+
+      <div class="add-card">
+        <div class="plus">+</div>
+        <div class="lbl">Add future one-off</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="cat-breakdown">
+
+    <div class="cat-panel">
+      <div class="panel-head">
+        <h3>By category <em>— rolling 12 months</em></h3>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3)">$4,820 total</span>
+      </div>
+      <div class="cat-row">
+        <div class="dot" style="background:var(--accent)"></div>
+        <div class="name">Travel</div>
+        <div class="count">8 events</div>
+        <div class="amt">$1,840</div>
+      </div>
+      <div class="cat-row">
+        <div class="dot" style="background:var(--accent-2)"></div>
+        <div class="name">Auto</div>
+        <div class="count">5 events</div>
+        <div class="amt">$1,220</div>
+      </div>
+      <div class="cat-row">
+        <div class="dot" style="background:var(--accent-3)"></div>
+        <div class="name">Gifts</div>
+        <div class="count">11 events</div>
+        <div class="amt">$860</div>
+      </div>
+      <div class="cat-row">
+        <div class="dot" style="background:var(--accent-4)"></div>
+        <div class="name">Medical · dental</div>
+        <div class="count">3 events</div>
+        <div class="amt">$420</div>
+      </div>
+      <div class="cat-row">
+        <div class="dot" style="background:var(--accent-5)"></div>
+        <div class="name">Other</div>
+        <div class="count">6 events</div>
+        <div class="amt">$480</div>
+      </div>
+    </div>
+
+    <div class="quick-add">
+      <h3>Quick add</h3>
+      <div class="qa-field">
+        <label>What</label>
+        <input type="text" placeholder="e.g. Eye exam + new glasses">
+      </div>
+      <div class="qa-row">
+        <div class="qa-field">
+          <label>Amount</label>
+          <input type="text" placeholder="$0.00">
+        </div>
+        <div class="qa-field">
+          <label>When</label>
+          <input type="text" placeholder="MM/DD/YYYY">
+        </div>
+      </div>
+      <div class="qa-field">
+        <label>Category</label>
+        <select>
+          <option>Travel</option>
+          <option>Auto</option>
+          <option>Gifts</option>
+          <option>Medical · dental</option>
+          <option>Home · repairs</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="qa-field">
+        <label>Note</label>
+        <textarea placeholder="Context, vendor, quote — anything you'll forget in 3 weeks"></textarea>
+      </div>
+      <button class="btn-primary" style="width:100%;padding:10px">Add one-off</button>
+    </div>
+
+  </div>
+
+</main>
+</body>
+</html>

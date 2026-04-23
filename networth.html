@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Net Worth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ee;
+  --bg-2:#ebe8e0;
+  --ink:#1a1a1a;
+  --ink-2:#4a4a4a;
+  --ink-3:#8a8a85;
+  --line:#d8d4c9;
+  --line-2:#c4bfb2;
+  --card:#fbf9f4;
+  --accent:#c8491c;      /* income / positive */
+  --accent-2:#1f4d3a;    /* debt */
+  --accent-3:#8b6f2f;    /* bills */
+  --accent-4:#3d5a7a;    /* budget */
+  --accent-5:#6b4e8f;    /* ad-hoc / misc */
+  --danger:#a0361a;
+  --success:#2d5a3d;
+  --radius:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:'Inter Tight',sans-serif;font-size:14px;line-height:1.4;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;display:flex}
+.mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:'Fraunces',serif;font-feature-settings:"ss01","ss02"}
+
+/* SIDEBAR */
+aside{
+  width:220px;flex-shrink:0;border-right:1px solid var(--line);
+  background:var(--bg-2);padding:28px 20px;position:sticky;top:0;height:100vh;
+  display:flex;flex-direction:column;gap:32px;overflow-y:auto;
+}
+.brand{display:flex;flex-direction:column;gap:2px}
+.brand .logo{font-family:'Fraunces',serif;font-weight:400;font-style:italic;font-size:26px;letter-spacing:-0.5px;color:var(--ink)}
+.brand .sub{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+nav{display:flex;flex-direction:column;gap:2px}
+nav .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);margin-bottom:8px;padding:0 8px}
+nav a{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;color:var(--ink-2);text-decoration:none;font-size:13px;border-radius:var(--radius);cursor:pointer;transition:all .15s}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.active{background:var(--ink);color:var(--bg)}
+nav a .count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-3)}
+nav a.active .count{color:var(--bg-2)}
+.sidebar-footer{margin-top:auto;padding-top:20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.sidebar-footer .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* MAIN */
+main{flex:1;padding:32px 40px 60px;max-width:1400px;width:100%}
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.topbar h1{font-family:'Fraunces',serif;font-weight:300;font-size:42px;letter-spacing:-1px;line-height:1}
+.topbar h1 em{font-style:italic;color:var(--ink-3)}
+.topbar .meta{text-align:right;font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px}
+.topbar .meta .date{color:var(--ink);font-size:12px;margin-bottom:4px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-top:8px}
+.section-head h2{font-family:'Fraunces',serif;font-weight:400;font-size:22px;letter-spacing:-0.3px}
+.section-head h2 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.section-head .controls{display:flex;gap:4px;align-items:center}
+
+.chip{padding:5px 11px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;border:1px solid var(--line-2);color:var(--ink-2);cursor:pointer;border-radius:var(--radius);transition:all .15s}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:var(--radius)}
+.btn-primary:hover{background:var(--accent-2)}
+.btn-ghost{padding:6px 14px;font-size:11px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--ink-2);border:1px solid var(--line-2);cursor:pointer;border-radius:var(--radius)}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+
+/* PANEL */
+.panel{background:var(--card);border:1px solid var(--line)}
+.panel-head{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;background:var(--bg-2)}
+.panel-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+.panel-head h3 em{font-style:italic;color:var(--ink-3);font-weight:300}
+.panel-head .add{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);cursor:pointer;padding:4px 8px;border:1px solid var(--line-2);border-radius:var(--radius);background:transparent}
+.panel-head .add:hover{color:var(--ink);border-color:var(--ink)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:32px}
+.stat{background:var(--card);padding:20px 22px;position:relative;display:flex;flex-direction:column;gap:4px}
+.stat .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+.stat .val{font-family:'Fraunces',serif;font-weight:300;font-size:32px;letter-spacing:-0.5px;margin-top:6px;line-height:1;font-variant-numeric:tabular-nums}
+.stat .delta{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;display:flex;gap:4px;align-items:center}
+.stat .delta.up{color:var(--success)}
+.stat .delta.down{color:var(--danger)}
+.stat .sub{font-size:11px;color:var(--ink-3);margin-top:2px}
+.stat.negative .val{color:var(--accent-2)}
+
+/* bars */
+.bar{width:3px;height:20px;border-radius:1px;flex-shrink:0}
+.bar.bill{background:var(--accent-3)}
+.bar.debt{background:var(--accent-2)}
+.bar.budget{background:var(--accent-4)}
+.bar.adhoc{background:var(--accent)}
+.bar.income{background:var(--success)}
+.bar.misc{background:var(--accent-5)}
+
+/* tags */
+.tag{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-3);padding:3px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card)}
+.tag.debt{color:var(--accent-2);border-color:var(--accent-2)}
+.tag.bill{color:var(--accent-3);border-color:var(--accent-3)}
+.tag.budget{color:var(--accent-4);border-color:var(--accent-4)}
+.tag.adhoc{color:var(--accent);border-color:var(--accent)}
+.tag.income{color:var(--success);border-color:var(--success)}
+
+/* MOBILE */
+@media(max-width:900px){
+  aside{display:none}
+  main{padding:20px 16px 40px}
+  .topbar h1{font-size:32px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+
+</style>
+<style>
+  .hero{background:var(--card);border:1px solid var(--line);padding:32px 36px;margin-bottom:32px;display:grid;grid-template-columns:1fr 1.5fr;gap:40px;align-items:center}
+  .hero-left .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3)}
+  .hero-left .val{font-family:'Fraunces',serif;font-weight:300;font-size:68px;letter-spacing:-2px;line-height:1;margin:12px 0 8px;font-variant-numeric:tabular-nums}
+  .hero-left .delta{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--success);display:flex;align-items:center;gap:8px}
+  .hero-left .delta .pct{padding:2px 8px;background:rgba(45,90,61,0.1);border-radius:var(--radius);font-weight:600}
+  .hero-right{position:relative;height:160px}
+
+  .breakdown{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:32px}
+  .breakdown-panel{background:var(--card);border:1px solid var(--line)}
+  .bd-row{display:grid;grid-template-columns:14px 1fr 90px;gap:14px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);font-size:13px}
+  .bd-row:last-child{border-bottom:none}
+  .bd-row:hover{background:var(--bg)}
+  .bd-row .name{display:flex;flex-direction:column;gap:1px}
+  .bd-row .name strong{font-weight:500}
+  .bd-row .name span{font-size:11px;color:var(--ink-3);font-family:'JetBrains Mono',monospace}
+  .bd-row .val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;text-align:right}
+  .bd-total{display:grid;grid-template-columns:14px 1fr 90px;gap:14px;padding:14px 20px;background:var(--bg-2);border-top:1px solid var(--line);align-items:center}
+  .bd-total .label{font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);grid-column:1/3}
+  .bd-total .val{font-family:'Fraunces',serif;font-size:20px;font-weight:400;text-align:right;letter-spacing:-0.3px}
+
+  /* allocation bar */
+  .allocation{background:var(--card);border:1px solid var(--line);padding:24px;margin-bottom:32px}
+  .allocation-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px}
+  .allocation-head h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;letter-spacing:-0.3px}
+  .allocation-bar{display:flex;height:28px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line)}
+  .allocation-seg{display:flex;align-items:center;justify-content:center;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:1px;transition:all .2s}
+  .allocation-legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px}
+  .allocation-legend span{display:flex;align-items:center;gap:6px;color:var(--ink-2)}
+  .allocation-legend .swatch{width:10px;height:10px;border-radius:0}
+
+  /* milestones */
+  .milestones{background:var(--card);border:1px solid var(--line);padding:24px}
+  .milestones h3{font-family:'Fraunces',serif;font-weight:400;font-size:18px;margin-bottom:16px;letter-spacing:-0.3px}
+  .mile{display:grid;grid-template-columns:1fr auto;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);align-items:center}
+  .mile:last-child{border-bottom:none}
+  .mile .name{font-weight:500;font-size:14px;margin-bottom:4px}
+  .mile .progress-wrap{display:flex;gap:10px;align-items:center}
+  .mile .bar-mini{width:200px;height:4px;background:var(--bg-2);border-radius:2px;overflow:hidden}
+  .mile .bar-mini .fill{height:100%;background:var(--success)}
+  .mile .pct{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);min-width:40px}
+  .mile .eta{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3);text-align:right}
+  .mile .eta strong{color:var(--ink);font-weight:500}
+
+  @media(max-width:900px){
+    .hero{grid-template-columns:1fr;gap:20px}
+    .hero-left .val{font-size:48px}
+    .breakdown{grid-template-columns:1fr;gap:20px}
+    .mile .bar-mini{width:120px}
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="logo">Ledger</div>
+    <div class="sub">Personal · 001</div>
+  </div>
+  <nav>
+    <div class="label">View</div>
+    <a href="index.html">Overview <span class="count">—</span></a>
+    <a href="cashflow.html">Cash Flow <span class="count">90d</span></a>
+    <a href="transactions.html">Transactions <span class="count">142</span></a>
+    <a href="networth.html" class="active">Net Worth <span class="count">↗</span></a>
+  </nav>
+  <nav>
+    <div class="label">Manage</div>
+    <a href="debts.html">Debts <span class="count">7</span></a>
+    <a href="bills.html">Recurring Bills <span class="count">14</span></a>
+    <a href="budgets.html">Budgets <span class="count">6</span></a>
+    <a href="income.html">Income <span class="count">4</span></a>
+    <a href="adhoc.html">Ad-Hoc <span class="count">3</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status"><span class="dot"></span> Synced 04:12 AM</div>
+    <div class="status" style="color:var(--ink-3)">Agent: Ledger · v0.1</div>
+  </div>
+</aside>
+
+<main>
+  <div class="topbar">
+    <h1>Net Worth <em>— the long game</em></h1>
+    <div class="meta">
+      <div class="date">Tracked since Jan 2024</div>
+      <div>28 months · all sources</div>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-left">
+      <div class="label">Current Net Worth</div>
+      <div class="val">$38,922</div>
+      <div class="delta">
+        <span>↗ +$22,480 <span style="color:var(--ink-3)">since Jan 2024</span></span>
+        <span class="pct">+137%</span>
+      </div>
+    </div>
+    <div class="hero-right">
+      <svg viewBox="0 0 600 160" preserveAspectRatio="none" style="width:100%;height:100%;overflow:visible">
+        <!-- grid -->
+        <line x1="0" y1="20" x2="600" y2="20" stroke="#d8d4c9" stroke-dasharray="2,3"/>
+        <line x1="0" y1="70" x2="600" y2="70" stroke="#d8d4c9" stroke-dasharray="2,3"/>
+        <line x1="0" y1="120" x2="600" y2="120" stroke="#d8d4c9" stroke-dasharray="2,3"/>
+        <text x="0" y="18" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">$40K</text>
+        <text x="0" y="68" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">$25K</text>
+        <text x="0" y="118" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">$10K</text>
+        <!-- net worth curve -->
+        <path d="M 30 135 L 50 132 L 80 128 L 110 120 L 140 122 L 170 115 L 200 108 L 230 100 L 260 95 L 290 88 L 320 82 L 350 75 L 380 68 L 410 60 L 440 55 L 470 48 L 500 40 L 530 32 L 570 22" 
+              fill="none" stroke="#2d5a3d" stroke-width="2"/>
+        <path d="M 30 135 L 50 132 L 80 128 L 110 120 L 140 122 L 170 115 L 200 108 L 230 100 L 260 95 L 290 88 L 320 82 L 350 75 L 380 68 L 410 60 L 440 55 L 470 48 L 500 40 L 530 32 L 570 22 L 570 160 L 30 160 Z" 
+              fill="#2d5a3d" opacity="0.1"/>
+        <!-- current point -->
+        <circle cx="570" cy="22" r="5" fill="#c8491c"/>
+        <circle cx="570" cy="22" r="10" fill="#c8491c" opacity="0.2"/>
+        <!-- x axis labels -->
+        <text x="30" y="155" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">Jan '24</text>
+        <text x="200" y="155" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">Jan '25</text>
+        <text x="370" y="155" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">Jan '26</text>
+        <text x="540" y="155" font-family="JetBrains Mono" font-size="9" fill="#8a8a85">Now</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Composition <em>— what you own, what you owe</em></h2>
+    <div class="controls">
+      <button class="chip active">Today</button>
+      <button class="chip">1M ago</button>
+      <button class="chip">1Y ago</button>
+    </div>
+  </div>
+
+  <div class="breakdown">
+
+    <div class="breakdown-panel">
+      <div class="panel-head">
+        <h3>Assets <em>— $87,242</em></h3>
+        <span class="tag income">+$3,380 · 30d</span>
+      </div>
+      <div class="bd-row">
+        <div class="bar income"></div>
+        <div class="name"><strong>TD Chequing</strong><span>····8842</span></div>
+        <div class="val">$6,420</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar income"></div>
+        <div class="name"><strong>TD High-Interest Savings</strong><span>emergency fund</span></div>
+        <div class="val">$12,200</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar income"></div>
+        <div class="name"><strong>Wealthsimple Cash</strong><span>short-term savings</span></div>
+        <div class="val">$6,192</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar budget"></div>
+        <div class="name"><strong>Wealthsimple TFSA</strong><span>VEQT, XEQT</span></div>
+        <div class="val">$34,820</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar budget"></div>
+        <div class="name"><strong>Questrade RRSP</strong><span>VOO, VGRO</span></div>
+        <div class="val">$19,410</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar budget"></div>
+        <div class="name"><strong>Wealthsimple Crypto</strong><span>BTC, ETH</span></div>
+        <div class="val">$8,200</div>
+      </div>
+      <div class="bd-total">
+        <div class="label">Total Assets</div>
+        <div class="val">$87,242</div>
+      </div>
+    </div>
+
+    <div class="breakdown-panel">
+      <div class="panel-head">
+        <h3>Liabilities <em>— $48,320</em></h3>
+        <span class="tag debt">−$890 · 30d</span>
+      </div>
+      <div class="bd-row">
+        <div class="bar debt"></div>
+        <div class="name"><strong>TD Visa</strong><span>22.9% APR · ····4291</span></div>
+        <div class="val">$8,420</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar debt"></div>
+        <div class="name"><strong>Amex Cobalt</strong><span>21.0% APR · ····0018</span></div>
+        <div class="val">$5,210</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar debt"></div>
+        <div class="name"><strong>TD Line of Credit</strong><span>9.4% APR · unsecured</span></div>
+        <div class="val">$12,800</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar debt"></div>
+        <div class="name"><strong>Car loan · RBC</strong><span>6.8% APR · 36 mo left</span></div>
+        <div class="val">$14,200</div>
+      </div>
+      <div class="bd-row">
+        <div class="bar debt"></div>
+        <div class="name"><strong>Student loan · OSAP</strong><span>5.2% APR</span></div>
+        <div class="val">$7,690</div>
+      </div>
+      <div class="bd-total">
+        <div class="label">Total Liabilities</div>
+        <div class="val">$48,320</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="allocation">
+    <div class="allocation-head">
+      <h3>Asset allocation <em style="font-style:italic;color:var(--ink-3);font-weight:300">— where it sits</em></h3>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-3)">Total $87,242</span>
+    </div>
+    <div class="allocation-bar">
+      <div class="allocation-seg" style="background:#2d5a3d;width:28.2%">CASH 28%</div>
+      <div class="allocation-seg" style="background:#3d5a7a;width:62.4%">INVESTMENTS 62%</div>
+      <div class="allocation-seg" style="background:#6b4e8f;width:9.4%">CRYPTO 9%</div>
+    </div>
+    <div class="allocation-legend">
+      <span><span class="swatch" style="background:#2d5a3d"></span> Cash & Savings · $24,812</span>
+      <span><span class="swatch" style="background:#3d5a7a"></span> TFSA + RRSP · $54,230</span>
+      <span><span class="swatch" style="background:#6b4e8f"></span> Crypto · $8,200</span>
+    </div>
+  </div>
+
+  <div class="milestones">
+    <h3>Milestones <em style="font-style:italic;color:var(--ink-3);font-weight:300">— goals in flight</em></h3>
+    <div class="mile">
+      <div>
+        <div class="name">Emergency fund · 6 months expenses</div>
+        <div class="progress-wrap">
+          <div class="bar-mini"><div class="fill" style="width:68%"></div></div>
+          <div class="pct">68%</div>
+        </div>
+      </div>
+      <div class="eta">
+        <strong>$12,200</strong> / $18,000
+        <div style="color:var(--ink-3);margin-top:2px">ETA Jan 2027</div>
+      </div>
+    </div>
+    <div class="mile">
+      <div>
+        <div class="name">Debt-free (high-interest only)</div>
+        <div class="progress-wrap">
+          <div class="bar-mini"><div class="fill" style="width:52%;background:var(--accent-2)"></div></div>
+          <div class="pct">52%</div>
+        </div>
+      </div>
+      <div class="eta">
+        <strong>$13,630</strong> remaining
+        <div style="color:var(--ink-3);margin-top:2px">ETA Sep 2027</div>
+      </div>
+    </div>
+    <div class="mile">
+      <div>
+        <div class="name">Net worth → $100K</div>
+        <div class="progress-wrap">
+          <div class="bar-mini"><div class="fill" style="width:39%;background:var(--accent-4)"></div></div>
+          <div class="pct">39%</div>
+        </div>
+      </div>
+      <div class="eta">
+        <strong>$38,922</strong> / $100,000
+        <div style="color:var(--ink-3);margin-top:2px">ETA Q2 2028</div>
+      </div>
+    </div>
+    <div class="mile">
+      <div>
+        <div class="name">House down payment · 20%</div>
+        <div class="progress-wrap">
+          <div class="bar-mini"><div class="fill" style="width:22%;background:var(--accent)"></div></div>
+          <div class="pct">22%</div>
+        </div>
+      </div>
+      <div class="eta">
+        <strong>$13,000</strong> / $60,000
+        <div style="color:var(--ink-3);margin-top:2px">ETA 2029+</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

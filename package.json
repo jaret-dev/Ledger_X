@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Ledger — personal finance PWA monorepo",
+  "type": "module",
   "packageManager": "pnpm@9.12.3",
   "engines": {
     "node": ">=20.11.0",

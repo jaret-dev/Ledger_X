@@ -1,7 +1,13 @@
 import { Router } from "express";
-import { prisma } from "@ledger/db";
-import { BudgetsResponse, type BudgetWithProgress } from "@ledger/shared-types";
+import { Prisma, prisma } from "@ledger/db";
+import {
+  BudgetsResponse,
+  BudgetCreateInput,
+  BudgetUpdateInput,
+  type BudgetWithProgress,
+} from "@ledger/shared-types";
 import { currentPaycheckCycle } from "../services/cycle.js";
+import { parseId } from "../services/ownership.js";
 
 export const budgetsRouter: Router = Router();
 
@@ -100,6 +106,82 @@ budgetsRouter.get("/budgets", async (req, res, next) => {
 function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
+
+// ──────────── Mutations ────────────
+
+budgetsRouter.post("/budgets", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const input = BudgetCreateInput.parse(req.body);
+    const created = await prisma.budget.create({
+      data: {
+        householdId,
+        name: input.name,
+        category: input.category,
+        amount: new Prisma.Decimal(input.amount),
+        cycleType: input.cycleType,
+        cycleStartDay: input.cycleStartDay ?? null,
+      },
+    });
+    res.status(201).json({
+      id: created.id,
+      name: created.name,
+      category: created.category,
+      amount: round2(Number(created.amount)),
+      cycleType: created.cycleType,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+budgetsRouter.patch("/budgets/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const input = BudgetUpdateInput.parse(req.body);
+
+    const existing = await prisma.budget.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "budget_not_found", id });
+      return;
+    }
+
+    const data: Prisma.BudgetUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.category !== undefined) data.category = input.category;
+    if (input.amount !== undefined) data.amount = new Prisma.Decimal(input.amount);
+    if (input.cycleType !== undefined) data.cycleType = input.cycleType;
+    if (input.cycleStartDay !== undefined) data.cycleStartDay = input.cycleStartDay ?? null;
+
+    const updated = await prisma.budget.update({ where: { id }, data });
+    res.json({
+      id: updated.id,
+      name: updated.name,
+      category: updated.category,
+      amount: round2(Number(updated.amount)),
+      cycleType: updated.cycleType,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+budgetsRouter.delete("/budgets/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const existing = await prisma.budget.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "budget_not_found", id });
+      return;
+    }
+    await prisma.budget.update({ where: { id }, data: { isActive: false } });
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;

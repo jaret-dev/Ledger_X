@@ -1,13 +1,16 @@
 import { Router } from "express";
-import { prisma } from "@ledger/db";
+import { Prisma, prisma } from "@ledger/db";
 import {
   IncomeResponse,
+  IncomeSourceCreateInput,
+  IncomeSourceUpdateInput,
   type IncomeSource,
   type UpcomingDeposit,
   type MonthlyProjection,
 } from "@ledger/shared-types";
 import { incomeMonthlyAmount, projectPaydates } from "../services/cycle.js";
 import { addDays, addMonths, startOfMonth, toIso } from "../services/dates.js";
+import { fromIso, parseId } from "../services/ownership.js";
 
 export const incomeRouter: Router = Router();
 
@@ -124,6 +127,90 @@ incomeRouter.get("/income", async (req, res, next) => {
       },
     });
     res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────── Mutations ────────────
+
+incomeRouter.post("/income", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const input = IncomeSourceCreateInput.parse(req.body);
+
+    // Verify the user belongs to this household before linking
+    const user = await prisma.user.findFirst({
+      where: { id: input.userId, householdId },
+    });
+    if (!user) {
+      res.status(400).json({ error: "user_not_in_household", userId: input.userId });
+      return;
+    }
+
+    const created = await prisma.incomeSource.create({
+      data: {
+        householdId,
+        userId: input.userId,
+        name: input.name,
+        type: input.type,
+        amount: new Prisma.Decimal(input.amount),
+        amountVariable: input.amountVariable,
+        frequency: input.frequency,
+        payDayOfWeek: input.payDayOfWeek ?? null,
+        nextPayDate: fromIso(input.nextPayDate ?? null),
+        depositAccountId: input.depositAccountId ?? null,
+        isPrimary: input.isPrimary,
+      },
+    });
+    res.status(201).json({ id: created.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+incomeRouter.patch("/income/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const input = IncomeSourceUpdateInput.parse(req.body);
+
+    const existing = await prisma.incomeSource.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "income_not_found", id });
+      return;
+    }
+
+    const data: Prisma.IncomeSourceUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.type !== undefined) data.type = input.type;
+    if (input.amount !== undefined) data.amount = new Prisma.Decimal(input.amount);
+    if (input.amountVariable !== undefined) data.amountVariable = input.amountVariable;
+    if (input.frequency !== undefined) data.frequency = input.frequency;
+    if (input.payDayOfWeek !== undefined) data.payDayOfWeek = input.payDayOfWeek ?? null;
+    if (input.nextPayDate !== undefined) data.nextPayDate = fromIso(input.nextPayDate ?? null);
+    if (input.depositAccountId !== undefined)
+      data.depositAccountId = input.depositAccountId ?? null;
+    if (input.isPrimary !== undefined) data.isPrimary = input.isPrimary;
+
+    const updated = await prisma.incomeSource.update({ where: { id }, data });
+    res.json({ id: updated.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+incomeRouter.delete("/income/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const existing = await prisma.incomeSource.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "income_not_found", id });
+      return;
+    }
+    await prisma.incomeSource.update({ where: { id }, data: { isActive: false } });
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

@@ -5,9 +5,12 @@ import {
   TransactionsResponse,
   TransactionsSummaryQuery,
   TransactionsSummaryResponse,
+  TransactionUpdateInput,
+  TransactionAssignInput,
   type Transaction as TxnDto,
 } from "@ledger/shared-types";
 import { addDays, daysBetween, toIso } from "../services/dates.js";
+import { parseId } from "../services/ownership.js";
 
 export const transactionsRouter: Router = Router();
 
@@ -141,6 +144,80 @@ transactionsRouter.get("/transactions/summary", async (req, res, next) => {
       dailyAvgOut: round2(dailyAvgOut),
     });
     res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────── Mutations ────────────
+
+transactionsRouter.patch("/transactions/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const input = TransactionUpdateInput.parse(req.body);
+
+    const existing = await prisma.transaction.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "transaction_not_found", id });
+      return;
+    }
+
+    const data: Prisma.TransactionUpdateInput = {};
+    if (input.category !== undefined) data.category = input.category ?? null;
+    if (input.categorySource !== undefined) data.categorySource = input.categorySource;
+    if (input.budgetId !== undefined)
+      data.budget = input.budgetId ? { connect: { id: input.budgetId } } : { disconnect: true };
+    if (input.billId !== undefined)
+      data.bill = input.billId ? { connect: { id: input.billId } } : { disconnect: true };
+    if (input.debtId !== undefined)
+      data.debt = input.debtId ? { connect: { id: input.debtId } } : { disconnect: true };
+    if (input.adhocId !== undefined)
+      data.adhoc = input.adhocId ? { connect: { id: input.adhocId } } : { disconnect: true };
+    if (input.incomeSourceId !== undefined)
+      data.incomeSource = input.incomeSourceId
+        ? { connect: { id: input.incomeSourceId } }
+        : { disconnect: true };
+    if (input.isHidden !== undefined) data.isHidden = input.isHidden;
+    if (input.notes !== undefined) data.notes = input.notes ?? null;
+
+    const updated = await prisma.transaction.update({ where: { id }, data });
+    res.json({ id: updated.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/transactions/:id/assign
+ * Pin one transaction to one commitment (bill / debt / adhoc / budget /
+ * income), clearing the other four. Avoids ambiguous "this transaction
+ * counts toward two budgets" states.
+ */
+transactionsRouter.post("/transactions/:id/assign", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const input = TransactionAssignInput.parse(req.body);
+
+    const existing = await prisma.transaction.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "transaction_not_found", id });
+      return;
+    }
+
+    const updated = await prisma.transaction.update({
+      where: { id },
+      data: {
+        budgetId: input.kind === "budget" ? input.id ?? null : null,
+        billId: input.kind === "bill" ? input.id ?? null : null,
+        debtId: input.kind === "debt" ? input.id ?? null : null,
+        adhocId: input.kind === "adhoc" ? input.id ?? null : null,
+        incomeSourceId: input.kind === "income" ? input.id ?? null : null,
+        categorySource: "user",
+      },
+    });
+    res.json({ id: updated.id });
   } catch (err) {
     next(err);
   }

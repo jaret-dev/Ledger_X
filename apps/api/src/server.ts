@@ -17,6 +17,7 @@ import { incomeRouter } from "./routes/income.js";
 import { adhocRouter } from "./routes/adhoc.js";
 import { networthRouter } from "./routes/networth.js";
 import { cashflowRouter } from "./routes/cashflow.js";
+import { accountsRouter } from "./routes/accounts.js";
 
 // Factory so tests can instantiate without binding a port.
 export function createServer(): Express {
@@ -57,6 +58,7 @@ export function createServer(): Express {
   apiRouter.use("/", adhocRouter);
   apiRouter.use("/", networthRouter);
   apiRouter.use("/", cashflowRouter);
+  apiRouter.use("/", accountsRouter);
   app.use("/api", apiRouter);
 
   app.use(errorHandler);

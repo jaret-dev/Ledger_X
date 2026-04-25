@@ -1,7 +1,7 @@
 import express, { type Express, Router } from "express";
 import cors from "cors";
 import { pinoHttp } from "pino-http";
-import { env } from "./lib/env.js";
+import { env, isOriginAllowed } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { householdAuth } from "./middleware/householdAuth.js";
@@ -22,7 +22,19 @@ export function createServer(): Express {
   const app = express();
 
   app.use(pinoHttp({ logger }));
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+  app.use(
+    cors({
+      // Function form so we can match wildcard / regex entries from
+      // CORS_ORIGIN (parsed in env.ts) — Vercel preview URLs change per PR.
+      // Same-origin requests have no Origin header — accept those too.
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (isOriginAllowed(origin, env.CORS_ORIGIN)) return callback(null, true);
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      },
+      credentials: true,
+    }),
+  );
   app.use(express.json({ limit: "1mb" }));
 
   // Health is unauthenticated (Railway healthcheck has no header).

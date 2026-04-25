@@ -69,6 +69,8 @@ export const NetWorthMilestonesResponse = z.object({
 
 export type NetWorthSnapshot = z.infer<typeof NetWorthSnapshot>;
 export type NetWorthResponse = z.infer<typeof NetWorthResponse>;
+export type AssetBreakdown = z.infer<typeof AssetBreakdown>;
+export type LiabilityBreakdown = z.infer<typeof LiabilityBreakdown>;
 export type AllocationSlice = z.infer<typeof AllocationSlice>;
 export type NetWorthAllocationResponse = z.infer<typeof NetWorthAllocationResponse>;
 export type Milestone = z.infer<typeof Milestone>;

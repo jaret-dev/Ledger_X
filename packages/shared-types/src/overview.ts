@@ -86,4 +86,7 @@ export const OverviewResponse = z.object({
 });
 
 export type PaycheckBlock = z.infer<typeof PaycheckBlock>;
+export type OverviewDebtRow = z.infer<typeof OverviewDebtRow>;
+export type OverviewBudgetRow = z.infer<typeof OverviewBudgetRow>;
+export type OverviewAdhocCard = z.infer<typeof OverviewAdhocCard>;
 export type OverviewResponse = z.infer<typeof OverviewResponse>;

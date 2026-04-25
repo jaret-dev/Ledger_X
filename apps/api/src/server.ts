@@ -7,6 +7,15 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { householdAuth } from "./middleware/householdAuth.js";
 import { healthRouter } from "./routes/health.js";
 import { householdRouter } from "./routes/household.js";
+import { overviewRouter } from "./routes/overview.js";
+import { transactionsRouter } from "./routes/transactions.js";
+import { debtsRouter } from "./routes/debts.js";
+import { billsRouter } from "./routes/bills.js";
+import { budgetsRouter } from "./routes/budgets.js";
+import { incomeRouter } from "./routes/income.js";
+import { adhocRouter } from "./routes/adhoc.js";
+import { networthRouter } from "./routes/networth.js";
+import { cashflowRouter } from "./routes/cashflow.js";
 
 // Factory so tests can instantiate without binding a port.
 export function createServer(): Express {
@@ -19,13 +28,21 @@ export function createServer(): Express {
   // Health is unauthenticated (Railway healthcheck has no header).
   app.use("/api", healthRouter);
 
-  // Everything else requires the x-household-id header (stub) until Phase 5.
-  // Mount auth-gated routes on a sub-router so /api/health stays open.
+  // All read endpoints sit behind the stub householdAuth middleware until
+  // Phase 5 wires Clerk. Order doesn't matter beyond that — each router's
+  // paths are unique.
   const apiRouter = Router();
   apiRouter.use(householdAuth);
   apiRouter.use("/", householdRouter);
-  // Phase 2b mounts the read-only endpoints (overview, cashflow, debts, etc.)
-  // here in the order they're built.
+  apiRouter.use("/", overviewRouter);
+  apiRouter.use("/", transactionsRouter);
+  apiRouter.use("/", debtsRouter);
+  apiRouter.use("/", billsRouter);
+  apiRouter.use("/", budgetsRouter);
+  apiRouter.use("/", incomeRouter);
+  apiRouter.use("/", adhocRouter);
+  apiRouter.use("/", networthRouter);
+  apiRouter.use("/", cashflowRouter);
   app.use("/api", apiRouter);
 
   app.use(errorHandler);

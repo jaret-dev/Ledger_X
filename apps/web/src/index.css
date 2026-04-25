@@ -2,28 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens from design/mockups/ — ported in detail in Phase 2. */
+/*
+ * Ledger design tokens — ported verbatim from design/mockups/.
+ * Every value here is consumed by Tailwind via tailwind.config.js, so most
+ * components should reach for utilities (e.g. bg-bg, text-ink-3, font-serif)
+ * rather than raw vars. Vars are exposed for the rare case where Tailwind
+ * doesn't have an easy escape hatch (SVG charts, dynamic styles).
+ */
+
 :root {
-  --color-bg: #f5f3ee;
-  --color-fg: #1a1a1a;
+  /* Surfaces */
+  --bg: #f5f3ee;
+  --bg-2: #ebe8e0;
+  --card: #fbf9f4;
+
+  /* Text */
+  --ink: #1a1a1a;
+  --ink-2: #4a4a4a;
+  --ink-3: #8a8a85;
+
+  /* Borders */
+  --line: #d8d4c9;
+  --line-2: #c4bfb2;
+
+  /* Domain accents */
+  --accent: #c8491c; /* income / positive / ad-hoc */
+  --accent-2: #1f4d3a; /* debt */
+  --accent-3: #8b6f2f; /* bills */
+  --accent-4: #3d5a7a; /* budgets */
+  --accent-5: #6b4e8f; /* misc */
+
+  /* Status */
+  --danger: #a0361a;
+  --success: #2d5a3d;
+
+  /* Shapes */
+  --radius: 2px;
 }
 
-html,
-body,
-#root {
-  height: 100%;
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter Tight", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Headings — Fraunces with stylistic sets enabled. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: "Fraunces", Georgia, serif;
+    font-feature-settings: "ss01", "ss02";
+    font-weight: 400;
+    margin: 0;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+    line-height: 1;
+  }
+
+  h1 {
+    font-size: 42px;
+    font-weight: 300;
+    letter-spacing: -1px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+
+  h4 {
+    font-size: 20px;
+    line-height: 1.2;
+  }
+
+  /* Italic-serif within a heading is reserved for muted subtitles per the
+     mockups — e.g. <h1>Overview <em>your week at a glance</em></h1>. */
+  h1 em,
+  h2 em,
+  h3 em,
+  h4 em {
+    color: var(--ink-3);
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  /* Mockup-narrow scrollbar — keeps the warm aesthetic. */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-2);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  @media (max-width: 900px) {
+    h1 {
+      font-size: 32px;
+    }
+  }
 }
 
-body {
-  margin: 0;
-  background: var(--color-bg);
-  color: var(--color-fg);
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Helvetica,
-    Arial,
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
+@layer components {
+  /* `.label` — uppercase mono caps used for stat labels, panel meta, etc. */
+  .label {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  /* `.amount` — tabular-num mono for any displayed currency. */
+  .amount {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
 }

@@ -16,3 +16,5 @@ export * from "./transaction.js";
 export * from "./networth.js";
 export * from "./cashflow.js";
 export * from "./overview.js";
+export * from "./sidebar.js";
+export * from "./mutations.js";

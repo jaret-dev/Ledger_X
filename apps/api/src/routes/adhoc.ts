@@ -1,8 +1,14 @@
 import { Router } from "express";
-import { prisma } from "@ledger/db";
-import { AdHocResponse, type AdHocExpense } from "@ledger/shared-types";
+import { Prisma, prisma } from "@ledger/db";
+import {
+  AdHocResponse,
+  AdHocCreateInput,
+  AdHocUpdateInput,
+  type AdHocExpense,
+} from "@ledger/shared-types";
 import { addDays, daysBetween, toIso } from "../services/dates.js";
 import { currentPaycheckCycle } from "../services/cycle.js";
+import { fromIso, parseId } from "../services/ownership.js";
 
 export const adhocRouter: Router = Router();
 
@@ -91,6 +97,85 @@ adhocRouter.get("/adhoc", async (req, res, next) => {
       byCategory,
     });
     res.json(payload);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────── Mutations ────────────
+
+adhocRouter.post("/adhoc", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const input = AdHocCreateInput.parse(req.body);
+    const created = await prisma.adHocExpense.create({
+      data: {
+        householdId,
+        name: input.name,
+        description: input.description ?? null,
+        category: input.category,
+        amount: new Prisma.Decimal(input.amount),
+        dueDate: fromIso(input.dueDate)!,
+        paymentAccountId: input.paymentAccountId ?? null,
+        status: input.status,
+        assignedPaycheckDate: fromIso(input.assignedPaycheckDate ?? null),
+        notes: input.notes ?? null,
+      },
+    });
+    res.status(201).json({ id: created.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adhocRouter.patch("/adhoc/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const input = AdHocUpdateInput.parse(req.body);
+
+    const existing = await prisma.adHocExpense.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "adhoc_not_found", id });
+      return;
+    }
+
+    const data: Prisma.AdHocExpenseUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.description !== undefined) data.description = input.description ?? null;
+    if (input.category !== undefined) data.category = input.category;
+    if (input.amount !== undefined) data.amount = new Prisma.Decimal(input.amount);
+    if (input.dueDate !== undefined) data.dueDate = fromIso(input.dueDate)!;
+    if (input.paymentAccountId !== undefined)
+      data.paymentAccountId = input.paymentAccountId ?? null;
+    if (input.status !== undefined) data.status = input.status;
+    if (input.assignedPaycheckDate !== undefined)
+      data.assignedPaycheckDate = fromIso(input.assignedPaycheckDate ?? null);
+    if (input.notes !== undefined) data.notes = input.notes ?? null;
+
+    const updated = await prisma.adHocExpense.update({ where: { id }, data });
+    res.json({ id: updated.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adhocRouter.delete("/adhoc/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const existing = await prisma.adHocExpense.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "adhoc_not_found", id });
+      return;
+    }
+    // Soft-delete via status="cancelled" so historical Transaction.adhocId
+    // references stay valid.
+    await prisma.adHocExpense.update({
+      where: { id },
+      data: { status: "cancelled" },
+    });
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

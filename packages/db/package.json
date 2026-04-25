@@ -24,7 +24,7 @@
     "migrate:reset": "prisma migrate reset",
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "release": "prisma migrate deploy && tsx prisma/seed.ts",
+    "release": "prisma migrate deploy",
     "format:schema": "prisma format"
   },
   "prisma": {

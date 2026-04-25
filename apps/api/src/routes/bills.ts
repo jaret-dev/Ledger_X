@@ -1,8 +1,14 @@
 import { Router } from "express";
-import { prisma } from "@ledger/db";
-import { BillsResponse, type RecurringBill as BillDto } from "@ledger/shared-types";
+import { Prisma, prisma } from "@ledger/db";
+import {
+  BillsResponse,
+  RecurringBillCreateInput,
+  RecurringBillUpdateInput,
+  type RecurringBill as BillDto,
+} from "@ledger/shared-types";
 import { billMonthlyAmount } from "../services/cycle.js";
 import { addDays, daysBetween } from "../services/dates.js";
+import { fromIso, parseId } from "../services/ownership.js";
 
 export const billsRouter: Router = Router();
 
@@ -90,6 +96,111 @@ billsRouter.get("/bills", async (req, res, next) => {
     next(err);
   }
 });
+
+// ──────────── Mutations ────────────
+
+billsRouter.post("/bills", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const input = RecurringBillCreateInput.parse(req.body);
+    const created = await prisma.recurringBill.create({
+      data: {
+        householdId,
+        name: input.name,
+        category: input.category,
+        amount: new Prisma.Decimal(input.amount),
+        amountVariable: input.amountVariable,
+        frequency: input.frequency,
+        dueDayOfMonth: input.dueDayOfMonth ?? null,
+        nextDueDate: fromIso(input.nextDueDate)!,
+        autopay: input.autopay,
+        paymentAccountId: input.paymentAccountId ?? null,
+        paymentMethod: input.paymentMethod ?? null,
+      },
+    });
+    res.status(201).json(toBillDto(created));
+  } catch (err) {
+    next(err);
+  }
+});
+
+billsRouter.patch("/bills/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const input = RecurringBillUpdateInput.parse(req.body);
+
+    const existing = await prisma.recurringBill.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "bill_not_found", id });
+      return;
+    }
+
+    const data: Prisma.RecurringBillUpdateInput = {};
+    if (input.name !== undefined) data.name = input.name;
+    if (input.category !== undefined) data.category = input.category;
+    if (input.amount !== undefined) data.amount = new Prisma.Decimal(input.amount);
+    if (input.amountVariable !== undefined) data.amountVariable = input.amountVariable;
+    if (input.frequency !== undefined) data.frequency = input.frequency;
+    if (input.dueDayOfMonth !== undefined) data.dueDayOfMonth = input.dueDayOfMonth ?? null;
+    if (input.nextDueDate !== undefined) data.nextDueDate = fromIso(input.nextDueDate)!;
+    if (input.autopay !== undefined) data.autopay = input.autopay;
+    if (input.paymentAccountId !== undefined)
+      data.paymentAccountId = input.paymentAccountId ?? null;
+    if (input.paymentMethod !== undefined) data.paymentMethod = input.paymentMethod ?? null;
+
+    const updated = await prisma.recurringBill.update({ where: { id }, data });
+    res.json(toBillDto(updated));
+  } catch (err) {
+    next(err);
+  }
+});
+
+billsRouter.delete("/bills/:id", async (req, res, next) => {
+  try {
+    const householdId = req.household!.id;
+    const id = parseId(req.params.id);
+    const existing = await prisma.recurringBill.findFirst({ where: { id, householdId } });
+    if (!existing) {
+      res.status(404).json({ error: "bill_not_found", id });
+      return;
+    }
+    await prisma.recurringBill.update({ where: { id }, data: { isActive: false } });
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────── Helpers ────────────
+
+function toBillDto(b: {
+  id: number;
+  name: string;
+  category: string;
+  amount: Prisma.Decimal;
+  amountVariable: boolean;
+  frequency: string;
+  dueDayOfMonth: number | null;
+  nextDueDate: Date;
+  autopay: boolean;
+  paymentAccountId: number | null;
+  paymentMethod: string | null;
+}): BillDto {
+  return {
+    id: b.id,
+    name: b.name,
+    category: b.category,
+    amount: round2(Number(b.amount)),
+    amountVariable: b.amountVariable,
+    frequency: b.frequency as BillDto["frequency"],
+    dueDayOfMonth: b.dueDayOfMonth,
+    nextDueDate: toIsoDate(b.nextDueDate),
+    autopay: b.autopay,
+    paymentAccountId: b.paymentAccountId,
+    paymentMethod: b.paymentMethod,
+  };
+}
 
 function toIsoDate(d: Date): string {
   return d.toISOString().slice(0, 10);

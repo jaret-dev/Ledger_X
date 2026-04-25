@@ -1,13 +1,31 @@
+import { useState } from "react";
 import { TopBar } from "../components/TopBar";
 import { PageState, Panel, StatCard, StatGrid, MoneyAmount, BarTag } from "../components/ui";
 import { useIncome } from "../api/queries";
+import { useDeleteIncome } from "../api/mutations";
+import { Modal } from "../components/Modal";
+import { IncomeForm } from "../components/forms";
+import { RowActions } from "../components/RowActions";
 import { formatCurrency, formatDate } from "../lib/format";
+import type { IncomeSource } from "@ledger/shared-types";
 
 export function Income() {
   const query = useIncome();
+  const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<IncomeSource | null>(null);
+  const del = useDeleteIncome();
   return (
     <>
       <TopBar title="Income" subtitle="who's bringing what in" />
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="border border-ink bg-ink px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-card hover:border-accent-2 hover:bg-accent-2"
+        >
+          + Add source
+        </button>
+      </div>
       <PageState query={query}>
         {(data) => {
           const jaret = data.totals.perPerson.find((p) => p.userName === "Jaret");
@@ -26,7 +44,7 @@ export function Income() {
                   {data.sources.map((src) => (
                     <li
                       key={src.id}
-                      className="grid grid-cols-[3px_1fr_auto] items-center gap-4 px-5 py-4"
+                      className="grid grid-cols-[3px_1fr_auto_auto] items-center gap-4 px-5 py-4"
                     >
                       <BarTag kind="income" />
                       <div>
@@ -40,6 +58,11 @@ export function Income() {
                         </div>
                       </div>
                       <MoneyAmount value={src.amount} className="text-[14px]" />
+                      <RowActions
+                        onEdit={() => setEditing(src)}
+                        onDelete={() => del.mutate(src.id)}
+                        pending={del.isPending}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -96,6 +119,33 @@ export function Income() {
           );
         }}
       </PageState>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add income source">
+        <IncomeForm onClose={() => setAddOpen(false)} />
+      </Modal>
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={`Edit · ${editing?.name ?? ""}`}
+      >
+        {editing && (
+          <IncomeForm
+            initial={{
+              id: editing.id,
+              userId: editing.userId,
+              name: editing.name,
+              type: editing.type,
+              amount: editing.amount,
+              amountVariable: editing.amountVariable,
+              frequency: editing.frequency,
+              payDayOfWeek: editing.payDayOfWeek,
+              nextPayDate: editing.nextPayDate,
+              isPrimary: editing.isPrimary,
+            }}
+            onClose={() => setEditing(null)}
+          />
+        )}
+      </Modal>
     </>
   );
 }

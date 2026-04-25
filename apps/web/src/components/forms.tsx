@@ -12,6 +12,7 @@ import {
   useUpdateIncome,
   useCreateManualAccount,
   useUpdateAccount,
+  useUpdateTransaction,
 } from "../api/mutations";
 import { Field, ModalActions, Select, TextInput, Textarea } from "./Modal";
 import { useHousehold } from "../api/queries";
@@ -848,6 +849,112 @@ export function AccountForm({
         primaryLabel={initial ? "Save" : "Create"}
         isPending={isPending}
       />
+    </form>
+  );
+}
+
+// ─── Transaction edit (recategorize / hide / notes) ─────────────────
+
+type TransactionInitial = {
+  id: number;
+  merchantName: string | null;
+  merchantRaw: string;
+  date: string;
+  amount: number;
+  category: string | null;
+  notes: string | null;
+  isHidden: boolean;
+};
+
+const TXN_CATEGORIES = [
+  "groceries",
+  "gas",
+  "dining",
+  "entertainment",
+  "household",
+  "transport",
+  "travel",
+  "gifts",
+  "medical",
+  "subscription",
+  "income",
+  "debt_payment",
+  "transfer",
+  "other",
+];
+
+export function TransactionEditForm({
+  initial,
+  onClose,
+}: {
+  initial: TransactionInitial;
+  onClose: () => void;
+}) {
+  const [category, setCategory] = useState(initial.category ?? "other");
+  const [notes, setNotes] = useState(initial.notes ?? "");
+  const [hidden, setHidden] = useState(initial.isHidden);
+  const update = useUpdateTransaction();
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    update.mutate(
+      {
+        id: initial.id,
+        input: {
+          category,
+          categorySource: "user",
+          notes: notes || null,
+          isHidden: hidden,
+        },
+      },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="mb-4 border border-line bg-bg-2 px-4 py-3 text-[12px] text-ink-2">
+        <div className="font-mono text-[10px] uppercase tracking-widest text-ink-3">
+          {initial.date}
+        </div>
+        <div className="mt-1 text-[13px] text-ink">
+          {initial.merchantName ?? initial.merchantRaw}
+        </div>
+        <div className="mt-1 font-mono text-[12px]">
+          {initial.amount < 0
+            ? `+${Math.abs(initial.amount).toFixed(2)}`
+            : initial.amount.toFixed(2)}{" "}
+          CAD
+        </div>
+      </div>
+
+      <Field label="Category" htmlFor="t-cat">
+        <Select id="t-cat" value={category} onChange={(e) => setCategory(e.target.value)}>
+          {TXN_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Notes" htmlFor="t-notes">
+        <Textarea id="t-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </Field>
+
+      <div className="mb-3 flex items-center gap-2 text-[12px]">
+        <input
+          id="t-hidden"
+          type="checkbox"
+          checked={hidden}
+          onChange={(e) => setHidden(e.target.checked)}
+        />
+        <label htmlFor="t-hidden" className="text-ink-2">
+          Hide from totals (use for transfers between own accounts)
+        </label>
+      </div>
+
+      <ModalActions onCancel={onClose} primaryLabel="Save" isPending={update.isPending} />
     </form>
   );
 }

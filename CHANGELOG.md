@@ -2,7 +2,43 @@
 
 All notable changes to Ledger are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows the build plan's phase numbering until we ship to production.
 
-## [Unreleased] — Phase 2: Read-only frontend + API
+## [Unreleased] — Phase 3: Writes + mutations
+
+Branch: `phase-3-mutations`. Closes Phase 3 of BUILD_PLAN.
+
+**Done-when checklist (BUILD_PLAN §6):**
+- [x] All POST/PATCH/DELETE endpoints implemented with Zod validation
+- [x] Every "+" button opens a working form (Budgets, Bills, Debts, Ad-Hoc, Income)
+- [x] Every row can be edited via modal
+- [x] Every row can be deleted with confirmation
+- [x] Errors surface as toast notifications
+- [x] Undo works for destructive actions (5-second window)
+- [~] Optimistic updates — handled via React Query `invalidateQueries`; full optimistic patches deferred to a polish pass
+
+### Added
+
+- **17 mutation endpoints** on apps/api: POST/PATCH/DELETE for `/api/debts`, `/api/bills`, `/api/budgets`, `/api/income`, `/api/adhoc`; PATCH/DELETE on `/api/accounts/:id` + POST `/api/accounts/manual` (Plaid-managed accounts can't be edited via this path); PATCH `/api/transactions/:id` + POST `/api/transactions/:id/assign`. Every mutation parses the body via shared Zod schemas and verifies household ownership before touching the row.
+- **Soft-delete pattern** — `isActive: false` (or `status: cancelled` for ad-hoc) preserves historical Transaction foreign keys so deletes can be undone via PATCH.
+- **Toaster + Modal primitives** in `apps/web/src/components/`. Toast kinds: success (3s), error (sticky), undo (5s countdown bar with Undo action). Modal includes form primitives (`Field`, `TextInput`, `Select`, `Textarea`, `ModalActions`).
+- **Mutation hooks** in `apps/web/src/api/mutations.ts` — `useCreate*`, `useUpdate*`, `useDelete*` per resource. Each invalidates relevant React Query keys plus the composite endpoints (`overview`, `networth`, `cashflow`, `sidebar`) so every page that reads affected data refreshes automatically.
+- **Forms** in `apps/web/src/components/forms.tsx` — `BudgetForm`, `BillForm`, `DebtForm`, `AdHocForm`, `IncomeForm`, `AccountForm`, `TransactionEditForm`. Single file because they share so much structure.
+- **Page wiring** — Budgets, Bills, Debts, AdHoc, Income each got a `+ Add` button + per-row Edit/Delete via `RowActions`; Transactions rows are clickable to open the edit modal (recategorize / hide / notes).
+- **Mobile nav menu** — `+` hamburger button reveals the sidebar as a fixed overlay on <900px, with a dimmed backdrop and tap-link-to-close behaviour.
+- **Live sidebar counts** — new `/api/sidebar` endpoint returns transactionsCount / debtsCount / billsCount / budgetsCount / incomeCount / adhocCount and a `netWorthTrend` ("up" | "flat" | "down") derived from the latest two snapshots. Sidebar consumes via `useSidebar()` so the chips reflect mutations live.
+
+### Changed
+
+- **Seed-on-deploy disabled.** Phase 2's `release` script ran `prisma migrate deploy && tsx prisma/seed.ts`. With mutations landing, the seed half of that chain would silently reset every user edit on the next push. The `release` script is now migrate-only; the standalone `seed` script remains for fresh-environment use.
+- **Sidebar footer** label flipped from "Phase 1 · Mock data · seeded" to "Phase 3 · Mutations · live" so the visible label tracks the current build state.
+
+### Known gaps deferred to Phase 4 opener
+
+- **Optimistic updates** — currently invalidate-then-refetch instead of patch-the-cache-eagerly. Snappier but more code; punt until any specific mutation feels sluggish.
+- **`/api/transactions/:id/assign` UI** — the endpoint exists; the frontend currently only exposes recategorize/hide/notes. Pin-to-bill / pin-to-debt UX lands when the mockup's `assign` interaction is needed.
+- **Optimistic delete with undo** — undo currently triggers a server round-trip. Could be wholly client-side with snapshot rollback once we have a shape for that.
+- **Web component tests** — still empty. First mutation form is a natural target.
+
+## [0.2.0] — 2026-04-25 — Phase 2: Read-only frontend + API (shipped)
 
 Branch: `phase-2-pages`. Closes Phase 2 of BUILD_PLAN.
 

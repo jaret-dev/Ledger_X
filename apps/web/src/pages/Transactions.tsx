@@ -8,6 +8,8 @@ import {
   BarTag,
 } from "../components/ui";
 import { useTransactions, useTransactionsSummary } from "../api/queries";
+import { Modal } from "../components/Modal";
+import { TransactionEditForm } from "../components/forms";
 import { formatCurrency, formatDate } from "../lib/format";
 import type { Transaction } from "@ledger/shared-types";
 
@@ -16,6 +18,7 @@ export function Transactions() {
   const [category, setCategory] = useState<string | undefined>();
   const [accountId, setAccountId] = useState<number | undefined>();
   const [limit, setLimit] = useState(50);
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   const summary = useTransactionsSummary(30);
   const txns = useTransactions({ search, category, accountId, limit });
@@ -106,13 +109,25 @@ export function Transactions() {
                       {items.map((t) => (
                         <li
                           key={t.id}
-                          className="grid grid-cols-[3px_1fr_auto_auto] items-center gap-4 px-5 py-3 mobile:grid-cols-[3px_1fr_auto]"
+                          onClick={() => setEditing(t)}
+                          className="grid cursor-pointer grid-cols-[3px_1fr_auto_auto] items-center gap-4 px-5 py-3 hover:bg-bg-2 mobile:grid-cols-[3px_1fr_auto]"
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") setEditing(t);
+                          }}
                         >
                           <BarTag kind={t.amount < 0 ? "income" : kindFromCategory(t.category)} />
                           <div>
-                            <div className="text-[13px] text-ink">{t.merchantName ?? t.merchantRaw}</div>
+                            <div className="text-[13px] text-ink">
+                              {t.merchantName ?? t.merchantRaw}
+                              {t.isHidden && (
+                                <span className="ml-2 font-mono text-[10px] text-ink-3">(hidden)</span>
+                              )}
+                            </div>
                             <div className="font-mono text-[10px] uppercase tracking-widest text-ink-3">
                               {t.category ?? "—"}
+                              {t.notes && ` · ${t.notes.slice(0, 40)}`}
                             </div>
                           </div>
                           <span className="font-mono text-[10px] text-ink-3 mobile:hidden">
@@ -142,6 +157,27 @@ export function Transactions() {
           </>
         )}
       </PageState>
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title="Edit transaction"
+      >
+        {editing && (
+          <TransactionEditForm
+            initial={{
+              id: editing.id,
+              merchantName: editing.merchantName,
+              merchantRaw: editing.merchantRaw,
+              date: editing.date,
+              amount: editing.amount,
+              category: editing.category,
+              notes: editing.notes,
+              isHidden: editing.isHidden,
+            }}
+            onClose={() => setEditing(null)}
+          />
+        )}
+      </Modal>
     </>
   );
 }

@@ -15,7 +15,13 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
+# Run migrations OUT of the container CMD so healthcheckTimeout only has to
+# cover server boot, not migration + server boot. If migration fails here,
+# Railway keeps traffic on the old revision.
+preDeployCommand = "pnpm --filter @ledger/db exec prisma migrate deploy"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+# Generous window — first boot on a cold Railway replica can be 30-60s after
+# migrations are done. 300s is plenty and doesn't affect ongoing ops.
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

@@ -37,6 +37,6 @@ RUN pnpm build --filter @ledger/api
 # Railway sets PORT at runtime; our env.ts reads it.
 EXPOSE 3001
 
-# Apply pending migrations, then boot the server. migrate deploy is a no-op
-# when nothing is pending so this is safe on every restart.
-CMD ["sh", "-c", "pnpm --filter @ledger/db exec prisma migrate deploy && pnpm --filter @ledger/api start"]
+# Migrations are now run by railway.toml's preDeployCommand — keeps the
+# healthcheck window focused on server boot. CMD is just the server.
+CMD ["pnpm", "--filter", "@ledger/api", "start"]

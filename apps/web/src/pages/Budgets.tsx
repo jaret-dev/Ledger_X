@@ -1,14 +1,39 @@
+import { useState } from "react";
 import { TopBar } from "../components/TopBar";
-import { PageState, ProgressBar, StatCard, StatGrid, MoneyAmount } from "../components/ui";
+import {
+  PageState,
+  ProgressBar,
+  StatCard,
+  StatGrid,
+  MoneyAmount,
+} from "../components/ui";
 import { useBudgets } from "../api/queries";
+import { useDeleteBudget } from "../api/mutations";
+import { Modal } from "../components/Modal";
+import { BudgetForm } from "../components/forms";
+import { RowActions } from "../components/RowActions";
 import { formatCurrency, formatDate } from "../lib/format";
 import type { BudgetWithProgress } from "@ledger/shared-types";
 
 export function Budgets() {
   const query = useBudgets();
+  const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<BudgetWithProgress | null>(null);
+  const del = useDeleteBudget();
+
   return (
     <>
       <TopBar title="Budgets" subtitle="this paycheck" />
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="border border-ink bg-ink px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-card hover:border-accent-2 hover:bg-accent-2"
+        >
+          + Add envelope
+        </button>
+      </div>
+
       <PageState query={query}>
         {(data) => (
           <>
@@ -43,17 +68,58 @@ export function Budgets() {
 
             <div className="grid grid-cols-2 gap-4 mobile:grid-cols-1">
               {data.budgets.map((b) => (
-                <BudgetCard key={b.id} budget={b} pace={data.cycle.pctElapsed} />
+                <BudgetCard
+                  key={b.id}
+                  budget={b}
+                  pace={data.cycle.pctElapsed}
+                  onEdit={() => setEditing(b)}
+                  onDelete={() => del.mutate(b.id)}
+                  deleting={del.isPending}
+                />
               ))}
             </div>
           </>
         )}
       </PageState>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add envelope">
+        <BudgetForm onClose={() => setAddOpen(false)} />
+      </Modal>
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={`Edit · ${editing?.name ?? ""}`}
+      >
+        {editing && (
+          <BudgetForm
+            initial={{
+              id: editing.id,
+              name: editing.name,
+              category: editing.category,
+              amount: editing.amount,
+              cycleType: editing.cycleType,
+            }}
+            onClose={() => setEditing(null)}
+          />
+        )}
+      </Modal>
     </>
   );
 }
 
-function BudgetCard({ budget, pace }: { budget: BudgetWithProgress; pace: number }) {
+function BudgetCard({
+  budget,
+  pace,
+  onEdit,
+  onDelete,
+  deleting,
+}: {
+  budget: BudgetWithProgress;
+  pace: number;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   return (
     <article className="flex flex-col gap-3 border border-line bg-card p-5">
       <div className="flex items-start justify-between">
@@ -111,6 +177,10 @@ function BudgetCard({ budget, pace }: { budget: BudgetWithProgress; pace: number
           </ul>
         </div>
       )}
+
+      <div className="flex justify-end border-t border-line pt-3">
+        <RowActions onEdit={onEdit} onDelete={onDelete} pending={deleting} />
+      </div>
     </article>
   );
 }

@@ -1,14 +1,32 @@
+import { useState } from "react";
 import { TopBar } from "../components/TopBar";
 import { PageState, Panel, StatCard, StatGrid, MoneyAmount, StatusPill } from "../components/ui";
 import { useAdhoc } from "../api/queries";
+import { useDeleteAdHoc } from "../api/mutations";
+import { Modal } from "../components/Modal";
+import { AdHocForm } from "../components/forms";
+import { RowActions } from "../components/RowActions";
 import { formatCurrency, formatDate, formatRelativeDate } from "../lib/format";
 import type { AdHocExpense } from "@ledger/shared-types";
 
 export function AdHoc() {
   const query = useAdhoc();
+  const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<AdHocExpense | null>(null);
+  const del = useDeleteAdHoc();
+
   return (
     <>
       <TopBar title="Ad-Hoc" subtitle="known one-offs" />
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="border border-ink bg-ink px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-card hover:border-accent-2 hover:bg-accent-2"
+        >
+          + Add ad-hoc
+        </button>
+      </div>
       <PageState query={query}>
         {(data) => (
           <>
@@ -24,9 +42,27 @@ export function AdHoc() {
             </StatGrid>
 
             <div className="space-y-6">
-              <BucketSection title="This cycle" items={data.buckets.thisCycle} emphasized />
-              <BucketSection title="Next 30 days" items={data.buckets.next30d} />
-              <BucketSection title="Beyond 60 days" items={data.buckets.beyond60d} />
+              <BucketSection
+                title="This cycle"
+                items={data.buckets.thisCycle}
+                onEdit={setEditing}
+                onDelete={(id) => del.mutate(id)}
+                deletingId={del.isPending ? del.variables : null}
+              />
+              <BucketSection
+                title="Next 30 days"
+                items={data.buckets.next30d}
+                onEdit={setEditing}
+                onDelete={(id) => del.mutate(id)}
+                deletingId={del.isPending ? del.variables : null}
+              />
+              <BucketSection
+                title="Beyond 60 days"
+                items={data.buckets.beyond60d}
+                onEdit={setEditing}
+                onDelete={(id) => del.mutate(id)}
+                deletingId={del.isPending ? del.variables : null}
+              />
             </div>
 
             {data.byCategory.length > 0 && (
@@ -52,6 +88,17 @@ export function AdHoc() {
           </>
         )}
       </PageState>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add ad-hoc expense">
+        <AdHocForm onClose={() => setAddOpen(false)} />
+      </Modal>
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={`Edit · ${editing?.name ?? ""}`}
+      >
+        {editing && <AdHocForm initial={editing} onClose={() => setEditing(null)} />}
+      </Modal>
     </>
   );
 }
@@ -59,26 +106,46 @@ export function AdHoc() {
 function BucketSection({
   title,
   items,
-  emphasized,
+  onEdit,
+  onDelete,
+  deletingId,
 }: {
   title: string;
   items: AdHocExpense[];
-  emphasized?: boolean;
+  onEdit: (a: AdHocExpense) => void;
+  onDelete: (id: number) => void;
+  deletingId: number | null | undefined;
 }) {
   if (items.length === 0) return null;
   return (
     <section>
-      <h2 className={`mb-3 ${emphasized ? "" : "text-[20px]"}`}>{title}</h2>
+      <h2 className="mb-3 text-[20px]">{title}</h2>
       <div className="grid grid-cols-3 gap-4 mobile:grid-cols-1">
         {items.map((a) => (
-          <AdhocCardFull key={a.id} item={a} />
+          <AdhocCardFull
+            key={a.id}
+            item={a}
+            onEdit={() => onEdit(a)}
+            onDelete={() => onDelete(a.id)}
+            deleting={deletingId === a.id}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function AdhocCardFull({ item }: { item: AdHocExpense }) {
+function AdhocCardFull({
+  item,
+  onEdit,
+  onDelete,
+  deleting,
+}: {
+  item: AdHocExpense;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   const statusKind: Parameters<typeof StatusPill>[0]["kind"] =
     item.status === "funded"
       ? "funded"
@@ -99,12 +166,18 @@ function AdhocCardFull({ item }: { item: AdHocExpense }) {
         {formatRelativeDate(item.dueDate)} · {formatDate(item.dueDate)}
       </div>
       <h3 className="text-[20px]">{item.name}</h3>
-      {item.description && (
-        <p className="text-[12px] text-ink-2">{item.description}</p>
-      )}
+      {item.description && <p className="text-[12px] text-ink-2">{item.description}</p>}
       <div className="mt-2 flex items-end justify-between">
         <MoneyAmount value={item.amount} className="text-[16px]" />
         <StatusPill kind={statusKind} />
+      </div>
+      <div className="mt-1 flex justify-end border-t border-line pt-2">
+        <RowActions
+          onEdit={onEdit}
+          onDelete={onDelete}
+          deleteLabel="Cancel"
+          pending={deleting}
+        />
       </div>
     </article>
   );

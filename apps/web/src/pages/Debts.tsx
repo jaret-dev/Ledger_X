@@ -1,15 +1,32 @@
+import { useState } from "react";
 import { TopBar } from "../components/TopBar";
 import { PageState, Panel, ProgressBar, StatCard, StatGrid, MoneyAmount } from "../components/ui";
 import { useDebts, useDebtScenarios } from "../api/queries";
+import { useDeleteDebt } from "../api/mutations";
+import { Modal } from "../components/Modal";
+import { DebtForm } from "../components/forms";
+import { RowActions } from "../components/RowActions";
 import { formatCurrency } from "../lib/format";
 import type { Debt, PayoffScenario } from "@ledger/shared-types";
 
 export function Debts() {
   const debts = useDebts();
   const scenarios = useDebtScenarios();
+  const [addOpen, setAddOpen] = useState(false);
+  const [editing, setEditing] = useState<Debt | null>(null);
+  const del = useDeleteDebt();
   return (
     <>
       <TopBar title="Debts" subtitle="payoff in motion" />
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="border border-ink bg-ink px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-card hover:border-accent-2 hover:bg-accent-2"
+        >
+          + Add debt
+        </button>
+      </div>
       <PageState query={debts}>
         {(data) => (
           <>
@@ -37,7 +54,13 @@ export function Debts() {
 
             <div className="grid grid-cols-2 gap-4 mb-7 mobile:grid-cols-1">
               {data.debts.map((d) => (
-                <DebtCard key={d.id} debt={d} />
+                <DebtCard
+                  key={d.id}
+                  debt={d}
+                  onEdit={() => setEditing(d)}
+                  onDelete={() => del.mutate(d.id)}
+                  deleting={del.isPending}
+                />
               ))}
             </div>
 
@@ -72,11 +95,32 @@ export function Debts() {
           </>
         )}
       </PageState>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add debt">
+        <DebtForm onClose={() => setAddOpen(false)} />
+      </Modal>
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title={`Edit · ${editing?.name ?? ""}`}
+      >
+        {editing && <DebtForm initial={editing} onClose={() => setEditing(null)} />}
+      </Modal>
     </>
   );
 }
 
-function DebtCard({ debt }: { debt: Debt }) {
+function DebtCard({
+  debt,
+  onEdit,
+  onDelete,
+  deleting,
+}: {
+  debt: Debt;
+  onEdit: () => void;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   return (
     <article className="flex flex-col gap-3 border border-line bg-card p-5">
       <div className="flex items-start justify-between">
@@ -125,6 +169,10 @@ function DebtCard({ debt }: { debt: Debt }) {
           <div className="label">Min payment</div>
           <MoneyAmount value={debt.minPayment} className="text-[14px]" />
         </div>
+      </div>
+
+      <div className="flex justify-end border-t border-line pt-3">
+        <RowActions onEdit={onEdit} onDelete={onDelete} pending={deleting} />
       </div>
     </article>
   );

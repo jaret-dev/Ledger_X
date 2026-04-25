@@ -2,6 +2,40 @@
 
 All notable changes to Ledger are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows the build plan's phase numbering until we ship to production.
 
+## [Unreleased] — Phase 2: Read-only frontend + API
+
+Branch: `phase-2-pages`. Closes Phase 2 of BUILD_PLAN.
+
+**Done-when checklist (BUILD_PLAN §5):**
+- [x] All 9 pages implemented as React routes
+- [x] Every page fetches from `/api/*` and renders the same content as the mockup
+- [x] Mobile responsive at 380px (sidebar collapses, grids restack)
+- [x] Navigation between pages works (React Router v6)
+- [x] Loading + error states handled on every page (`<PageState>` wrapper)
+- [ ] Lighthouse ≥90 (untested in this PR — measure after merge to production)
+
+### Added
+
+- **Canonical seed dataset.** Transcribed every account, debt, bill, budget, income source, ad-hoc expense, and net worth snapshot from `design/mockups/` into `packages/db/prisma/seed.ts`. Seed re-runs on every Railway deploy (idempotent — disabled at the start of Phase 3 when mutations land).
+- **Design system port.** CSS variables for all mockup tokens (--bg, --ink, --accent variants, --line, --danger, --success). Tailwind config overrides colors / fontFamily / borderRadius so engineers reach for design-system utilities. Three Google Fonts loaded: Fraunces (display), JetBrains Mono (data + labels with tabular-nums), Inter Tight (body).
+- **App shell.** `AppLayout` (sidebar 220px + max-w 1400px main), `Sidebar` (View / Manage sections, italic-serif "l" wordmark in burnt orange), `TopBar` (page title + italic subtitle + right-side meta, stacks on mobile).
+- **Stub auth on the API.** `householdAuth` middleware reads `x-household-id` header, looks up the Household, attaches to `req`. `/api/health` bypasses auth so Railway's healthcheck still works. 5 middleware tests passing.
+- **13 read endpoints.** Overview, Cash Flow (90-day projection + events), Transactions (paginated, filtered, faceted), Transactions Summary, Debts + Payoff Scenarios (avalanche / snowball / minimums amortization engine), Bills (grouped by category), Budgets (cycle math + recent transactions per envelope), Income (sources + 30d upcoming + 6mo projection), Ad-Hoc (time-bucketed), Net Worth (current + history + assets + liabilities), Allocation, Milestones.
+- **Shared services in `apps/api/src/services/`:** `dates.ts` (UTC date helpers, biweekly/monthly projection, day-of-month clamping), `cycle.ts` (current paycheck cycle, frequency normalization), `payoff.ts` (debt amortization engine for the 3 scenarios).
+- **Shared Zod schemas in `@ledger/shared-types`** for every endpoint's request + response shape. The API parses outgoing payloads with `.parse()` and the frontend gets compile-time types from `z.infer<>`. One contract, two consumers.
+- **9 page implementations** porting each mockup file with live data via React Query hooks. Reusable UI primitives (`StatCard`, `StatGrid`, `Panel`, `BarTag`, `ProgressBar`, `StatusPill`, `PageState`, `MoneyAmount`) grouped in `components/ui.tsx`.
+
+### Fixed
+
+- TopBar squeeze on mobile — title + meta now stack vertically below 900px so long subtitles like "known one-offs" don't word-break across the right column.
+
+### Known gaps carried into Phase 3
+
+- **Mobile nav menu.** Sidebar hides at <900px but no replacement (hamburger / drawer) yet. Each page renders fine in isolation; navigation requires the URL bar on mobile.
+- **Sidebar nav counts** are still hardcoded placeholders (`—` / `90d` / `↗`). Wiring them to live data needs a single shared header query — postponed to alongside the Phase 3 mutation invalidation work.
+- **Lighthouse not measured.** Will profile after Phase 2 merges to production.
+- **No web component tests yet.** `apps/web/test` is empty — landing alongside the first mutation in Phase 3 when there's user-facing logic worth testing.
+
 ## [0.1.0] — 2026-04-25 — Phase 1: Foundation (shipped)
 
 **Live:**

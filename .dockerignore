@@ -17,4 +17,7 @@ design/mockups
 !CHANGELOG.md
 !README.md
 
-apps/web
+# Note: apps/web is intentionally NOT excluded. The Dockerfile copies
+# apps/web/package.json so pnpm install --frozen-lockfile can resolve
+# the full workspace graph; ignoring the directory breaks that COPY.
+# We don't COPY any apps/web sources, so the runtime image stays small.

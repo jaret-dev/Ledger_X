@@ -15,10 +15,12 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Run migrations OUT of the container CMD so healthcheckTimeout only has to
-# cover server boot, not migration + server boot. If migration fails here,
-# Railway keeps traffic on the old revision.
-preDeployCommand = "pnpm --filter @ledger/db exec prisma migrate deploy"
+# Apply pending migrations + (Phase 2 only) re-seed the canonical mock
+# dataset on every deploy. Both are idempotent: migrate deploy is a no-op
+# when nothing's pending, the seed uses findFirst-then-update-or-create.
+# DISABLE the seed step at the start of Phase 3 when mutations land —
+# user-edited rows would otherwise reset on the next deploy.
+preDeployCommand = "pnpm --filter @ledger/db exec prisma migrate deploy && pnpm --filter @ledger/db seed"
 healthcheckPath = "/api/health"
 # Generous window — first boot on a cold Railway replica can be 30-60s after
 # migrations are done. 300s is plenty and doesn't affect ongoing ops.

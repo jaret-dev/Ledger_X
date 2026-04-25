@@ -1,11 +1,18 @@
 /**
- * @ledger/shared-types — the API contract between apps/web and apps/api.
- *
- * Rule of thumb: if a type crosses the HTTP boundary, it lives here as a
- * Zod schema. Both sides import from this package; the API uses
- * `Schema.parse()` on input/output, the web uses the inferred type.
- *
- * Phase 1 exposes only HealthResponse. Phase 2 adds Overview, CashFlow,
- * Transactions, NetWorth, Debts, Bills, Budgets, Income, AdHoc.
+ * @ledger/shared-types — Zod schemas + inferred types shared across
+ * apps/web and apps/api. Every value that crosses the HTTP boundary
+ * is described here exactly once.
  */
+export * from "./money.js";
 export * from "./health.js";
+export * from "./household.js";
+export * from "./account.js";
+export * from "./debt.js";
+export * from "./bill.js";
+export * from "./budget.js";
+export * from "./income.js";
+export * from "./adhoc.js";
+export * from "./transaction.js";
+export * from "./networth.js";
+export * from "./cashflow.js";
+export * from "./overview.js";

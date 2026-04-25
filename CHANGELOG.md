@@ -14,7 +14,11 @@ All notable changes to Ledger are documented here. Format: [Keep a Changelog](ht
 - `apps/api` — Express + Zod + Prisma backend with `/api/health` returning `{status, db, timestamp}`. Includes pino-http logging, CORS, a ZodError-aware error middleware, graceful shutdown, and Vitest + supertest tests (2 passing).
 - `apps/web` — Vite + React 18 + TypeScript + Tailwind 3.4 frontend. Hello-world page fetches `/api/health` through React Query, parses the response with the shared Zod schema, and renders status/db/timestamp. Phase 2 ports the mockups.
 - `.github/workflows/ci.yml` — GitHub Actions CI: Postgres 16 service, pnpm + Turbo caching, Prisma migrate + drift check, then lint → typecheck → test → build on every push to `main` and every PR.
-- `DEPLOYMENT.md` — step-by-step runbook for Vercel (web) and Railway (api + Postgres). Includes `apps/web/vercel.json` and `apps/api/railway.toml` so the dashboards auto-read build/start commands.
+- `DEPLOYMENT.md` — step-by-step runbook for Vercel (web) and Railway (api + Postgres). Includes `apps/web/vercel.json`, repo-root `railway.toml`, and a repo-root `Dockerfile` so Railway's monorepo build is deterministic.
+
+### Changed
+
+- **Railway build switched from Nixpacks-with-cd-trick to a repo-root Dockerfile.** First deploy attempt failed with "Error creating build plan with Railpack" because `apps/api/railway.toml` + `cd ../..` didn't survive Railway's build context. Moved `railway.toml` to repo root, set `builder = "DOCKERFILE"`, added a Dockerfile that copies the workspace and runs the verified install/generate/build sequence. Root Directory on the Railway service must be left empty.
 
 ### Decisions
 

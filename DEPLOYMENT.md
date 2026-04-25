@@ -11,9 +11,10 @@ Jaret does the dashboard clicking; this doc lists exactly what to enter.
 ### One-time setup
 
 1. Sign in to Railway → **New Project** → **Deploy from GitHub repo** → pick `jaret-dev/Ledger_X`.
-2. When prompted for the root directory, set **`apps/api`**. Railway reads `apps/api/railway.toml` for build/start commands.
-3. In the same project, click **New** → **Database** → **Add PostgreSQL**. Railway creates the DB and provisions a `DATABASE_URL` environment variable.
-4. In the API service's **Variables** tab, **link** `DATABASE_URL` from the Postgres service (dropdown → pick the Postgres plugin's `DATABASE_URL`). Then add the rest below.
+2. **Leave Root Directory empty / unset** — Railway must build from the repo root so the pnpm workspace resolves. The `Dockerfile` and `railway.toml` at the repo root tell Railway exactly what to do.
+3. (Optional but recommended) In the API service's **Settings → Source**, set **Watch Paths** to `apps/api/**,packages/**,pnpm-lock.yaml,package.json,turbo.json,Dockerfile,railway.toml` so unrelated changes (mockups, web, docs) don't trigger redeploys.
+4. In the same project, click **New** → **Database** → **Add PostgreSQL**. Railway creates the DB and provisions a `DATABASE_URL` environment variable.
+5. In the API service's **Variables** tab, **link** `DATABASE_URL` from the Postgres service (dropdown → pick the Postgres plugin's `DATABASE_URL`). Then add the rest below.
 
 ### Environment variables (API service)
 
@@ -29,7 +30,7 @@ Later phases add `ENCRYPTION_KEY`, `ANTHROPIC_API_KEY`, `CLERK_SECRET_KEY`, `PLA
 
 ### Deploy triggers
 
-Railway auto-deploys on every push to `main`. The build runs migrations before the server comes up:
+Railway auto-deploys on every push to `main` (or whichever branch is configured under **Settings → Source**). The container is built from `Dockerfile` at the repo root, then the `CMD` runs migrations before the server comes up:
 
 ```
 pnpm --filter @ledger/db exec prisma migrate deploy && pnpm --filter @ledger/api start

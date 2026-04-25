@@ -2,7 +2,14 @@
 
 All notable changes to Ledger are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows the build plan's phase numbering until we ship to production.
 
-## [Unreleased] — Phase 1: Foundation
+## [0.1.0] — 2026-04-25 — Phase 1: Foundation (shipped)
+
+**Live:**
+- Web: <https://ledger-x-web.vercel.app>
+- API: <https://ledgerx-production.up.railway.app>
+- DB: Railway-managed Postgres 16
+
+Production hello-world renders `status: ok, db: connected, <timestamp>` end-to-end: browser → Vercel static bundle → Railway API → Postgres.
 
 ### Added
 
@@ -16,14 +23,23 @@ All notable changes to Ledger are documented here. Format: [Keep a Changelog](ht
 - `.github/workflows/ci.yml` — GitHub Actions CI: Postgres 16 service, pnpm + Turbo caching, Prisma migrate + drift check, then lint → typecheck → test → build on every push to `main` and every PR.
 - `DEPLOYMENT.md` — step-by-step runbook for Vercel (web) and Railway (api + Postgres). Includes `apps/web/vercel.json`, repo-root `railway.toml`, and a repo-root `Dockerfile` so Railway's monorepo build is deterministic.
 
-### Changed
+### Changed / fixed during deploy
 
-- **Railway build switched from Nixpacks-with-cd-trick to a repo-root Dockerfile.** First deploy attempt failed with "Error creating build plan with Railpack" because `apps/api/railway.toml` + `cd ../..` didn't survive Railway's build context. Moved `railway.toml` to repo root, set `builder = "DOCKERFILE"`, added a Dockerfile that copies the workspace and runs the verified install/generate/build sequence. Root Directory on the Railway service must be left empty.
+- **Railway build switched from Nixpacks-with-cd-trick to a repo-root Dockerfile.** Auto-detection with pnpm workspaces + nested `railway.toml` failed with Railpack errors; a repo-root Dockerfile is deterministic.
+- **`.dockerignore` no longer excludes `apps/web`.** The Dockerfile needs `apps/web/package.json` for pnpm's lockfile resolution; the file is copied but no web sources enter the runtime image.
+- **Express binds to `0.0.0.0`** explicitly (not Node's default) so Railway's internal healthcheck reaches the server inside the Alpine container.
+- **Migrations moved out of the container CMD** into `railway.toml`'s `preDeployCommand`. Healthcheck window (bumped to 300 s) now covers only server boot, not migrations.
+- **OpenSSL installed in the Docker image** via `apk add --no-cache openssl` so Prisma's query engine finds its TLS dependency at runtime.
 
 ### Decisions
 
 - **Seed scope:** Household #1 will include both Jaret and Sarah from day one. Sarah's `User.clerkId` remains null until Phase 5.
 - **Schema addition:** `BillPaycheckOverride` table is included in the Phase 1 Prisma schema (not deferred to Phase 3) so Phase 3's bill-to-paycheck pinning is a code-only change with no migration.
 - **Tailwind:** pinned to 3.4.x. v4's API churn is not worth absorbing mid-build.
-- **Branch:** development on `phase-1-foundation` (renamed from the review branch).
-- **Seed data:** the seed script is a deliberate placeholder that only creates Household #1 + both users. The canonical mock dataset (accounts, debts, budgets, bills, income sources, ad-hoc expenses, snapshot) ports from `design/mockups/` in a follow-up commit once the mockup numbers have been transcribed.
+- **Seed data:** the seed script currently only creates Household #1 + both users. The canonical mock dataset (accounts, debts, budgets, bills, income sources, ad-hoc expenses, snapshot) ports from `design/mockups/` as the first commit of Phase 2 — Phase 2's pages need the data anyway.
+
+### Known gaps carried into Phase 2
+
+- **CORS_ORIGIN only matches the production Vercel URL.** Preview deploys (`ledger-x-web-git-*.vercel.app`) will be blocked by CORS until the API accepts a regex/glob list. Phase 2 opener.
+- **Canonical seed dataset.** Placeholder seed today; full dataset from mockups in Phase 2.
+- **No tests on `apps/web` yet.** `pnpm test` is a no-op there. React Testing Library + Vitest lands alongside the first ported component.

@@ -7,6 +7,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { householdAuth } from "./middleware/householdAuth.js";
 import { healthRouter } from "./routes/health.js";
 import { householdRouter } from "./routes/household.js";
+import { sidebarRouter } from "./routes/sidebar.js";
 import { overviewRouter } from "./routes/overview.js";
 import { transactionsRouter } from "./routes/transactions.js";
 import { debtsRouter } from "./routes/debts.js";
@@ -46,6 +47,7 @@ export function createServer(): Express {
   const apiRouter = Router();
   apiRouter.use(householdAuth);
   apiRouter.use("/", householdRouter);
+  apiRouter.use("/", sidebarRouter);
   apiRouter.use("/", overviewRouter);
   apiRouter.use("/", transactionsRouter);
   apiRouter.use("/", debtsRouter);

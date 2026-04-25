@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   HealthResponse,
   HouseholdResponse,
+  SidebarResponse,
   OverviewResponse,
   TransactionsResponse,
   TransactionsSummaryResponse,
@@ -35,6 +36,13 @@ export function useHousehold() {
   return useQuery({
     queryKey: ["household"],
     queryFn: async () => HouseholdResponse.parse(await apiFetch("/api/household")),
+  });
+}
+
+export function useSidebar() {
+  return useQuery({
+    queryKey: ["sidebar"],
+    queryFn: async () => SidebarResponse.parse(await apiFetch("/api/sidebar")),
   });
 }
 

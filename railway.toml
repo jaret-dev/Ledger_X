@@ -15,15 +15,14 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Apply pending migrations + (Phase 2 only) re-seed the canonical mock
-# dataset on every deploy. Both are idempotent: migrate deploy is a no-op
-# when nothing's pending, the seed uses findFirst-then-update-or-create.
-# DISABLE the seed step at the start of Phase 3 when mutations land —
-# user-edited rows would otherwise reset on the next deploy.
+# Apply pending migrations on every deploy. The seed step from Phase 2
+# was REMOVED here at the start of Phase 3 — mutations are landing, and
+# user edits would otherwise reset on every push. Run the seed manually
+# via `pnpm --filter @ledger/db seed` against a fresh DB if needed.
 #
-# The chain is wrapped in a single npm script so `&&` runs inside pnpm's
-# shell — Railway's preDeployCommand exec's the first binary without a
-# shell wrapper, so a top-level `&& ...` would silently drop the seed.
+# A single `release` script wraps the chain (currently just migrate)
+# so Railway's preDeployCommand exec doesn't lose subcommands the way
+# a top-level `&&` did during Phase 2.
 preDeployCommand = "pnpm --filter @ledger/db release"
 healthcheckPath = "/api/health"
 # Generous window — first boot on a cold Railway replica can be 30-60s after

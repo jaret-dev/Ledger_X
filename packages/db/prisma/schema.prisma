@@ -1,0 +1,291 @@
+// Ledger — Prisma schema
+// Source of truth: BUILD_PLAN.md §4. Do not change without Jaret's approval (§13).
+//
+// Deviations from §4 (all pre-approved):
+//   - Added `BillPaycheckOverride` model and its back-relation on `RecurringBill`
+//     (per §6; included in Phase 1 so Phase 3's pinning feature is code-only).
+//
+// Conventions (§4):
+//   - Amounts are Decimal (never Float).
+//   - Positive amount = outflow, negative = inflow (Plaid convention).
+//   - Dates are @db.Date (no time); timestamps are for audit only.
+//   - Plaid fields are nullable — manual accounts (e.g. OSAP) are supported.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ IDENTITY ============
+
+model Household {
+  id                Int                @id @default(autoincrement())
+  name              String // e.g. "Jaret & Sarah"
+  createdAt         DateTime           @default(now())
+  users             User[]
+  accounts          Account[]
+  debts             Debt[]
+  bills             RecurringBill[]
+  budgets           Budget[]
+  incomeSources     IncomeSource[]
+  adhocExpenses     AdHocExpense[]
+  transactions      Transaction[]
+  netWorthSnapshots NetWorthSnapshot[]
+  agentMessages     AgentMessage[]
+}
+
+model User {
+  id            Int            @id @default(autoincrement())
+  householdId   Int
+  email         String         @unique
+  name          String // "Jaret" / "Sarah"
+  role          String         @default("member") // "primary" | "member"
+  clerkId       String?        @unique // set in Phase 5
+  createdAt     DateTime       @default(now())
+  household     Household      @relation(fields: [householdId], references: [id])
+  incomeSources IncomeSource[]
+}
+
+// ============ ACCOUNTS + PLAID ============
+
+model Account {
+  id               Int                      @id @default(autoincrement())
+  householdId      Int
+  plaidAccessToken String? // encrypted, see BUILD_PLAN §9
+  plaidItemId      String?
+  plaidAccountId   String?                  @unique
+  institution      String // "TD Canada Trust" / "American Express"
+  nickname         String // "TD Chequing" / "Amex Cobalt"
+  mask             String? // "8842"
+  type             String // "depository" | "credit" | "loan" | "investment"
+  subtype          String? // "checking" | "credit card" | "auto" | "tfsa" | "rrsp"
+  currentBalance   Decimal?                 @db.Decimal(12, 2)
+  availableBalance Decimal?                 @db.Decimal(12, 2)
+  creditLimit      Decimal?                 @db.Decimal(12, 2)
+  currency         String                   @default("CAD")
+  isActive         Boolean                  @default(true)
+  isManual         Boolean                  @default(false) // not synced via Plaid
+  lastSyncedAt     DateTime?
+  createdAt        DateTime                 @default(now())
+  household        Household                @relation(fields: [householdId], references: [id])
+  transactions     Transaction[]
+  balanceHistory   AccountBalanceSnapshot[]
+
+  @@index([householdId])
+  @@index([plaidItemId])
+}
+
+model AccountBalanceSnapshot {
+  id         Int      @id @default(autoincrement())
+  accountId  Int
+  balance    Decimal  @db.Decimal(12, 2)
+  recordedAt DateTime @default(now())
+  account    Account  @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, recordedAt])
+}
+
+// ============ TRANSACTIONS ============
+
+model Transaction {
+  id                 Int            @id @default(autoincrement())
+  householdId        Int
+  accountId          Int
+  plaidTransactionId String?        @unique
+  date               DateTime       @db.Date
+  amount             Decimal        @db.Decimal(12, 2) // positive = outflow, negative = inflow
+  merchantName       String?
+  merchantRaw        String // original string from Plaid/bank
+  description        String?
+  category           String? // our internal category: "groceries" | "gas" | "dining" | etc
+  categorySource     String         @default("llm") // "llm" | "user" | "rule" | "plaid"
+  categoryConfidence Decimal?       @db.Decimal(3, 2) // 0.00-1.00 if LLM categorized
+  budgetId           Int? // which budget envelope this counts against
+  billId             Int? // if this matches a recurring bill
+  debtId             Int? // if this is a debt payment
+  adhocId            Int? // if this fulfills an ad-hoc expense
+  incomeSourceId     Int? // if this is an income deposit
+  isPending          Boolean        @default(false)
+  isHidden           Boolean        @default(false) // user can hide transfers between own accounts
+  notes              String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  household          Household      @relation(fields: [householdId], references: [id])
+  account            Account        @relation(fields: [accountId], references: [id])
+  budget             Budget?        @relation(fields: [budgetId], references: [id])
+  bill               RecurringBill? @relation(fields: [billId], references: [id])
+  debt               Debt?          @relation(fields: [debtId], references: [id])
+  adhoc              AdHocExpense?  @relation(fields: [adhocId], references: [id])
+  incomeSource       IncomeSource?  @relation(fields: [incomeSourceId], references: [id])
+
+  @@index([householdId, date])
+  @@index([accountId, date])
+  @@index([budgetId])
+  @@index([category])
+}
+
+// ============ DEBTS ============
+
+model Debt {
+  id              Int           @id @default(autoincrement())
+  householdId     Int
+  accountId       Int? // linked account if one exists
+  name            String // "TD Visa"
+  type            String // "credit_card" | "line_of_credit" | "loan" | "student_loan" | "mortgage"
+  balance         Decimal       @db.Decimal(12, 2)
+  originalBalance Decimal?      @db.Decimal(12, 2)
+  creditLimit     Decimal?      @db.Decimal(12, 2)
+  apr             Decimal       @db.Decimal(5, 2) // e.g. 22.90
+  minPayment      Decimal       @db.Decimal(10, 2)
+  dueDayOfMonth   Int? // 1-31, or null if installment loan
+  payoffDate      DateTime?     @db.Date // for installment loans
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  household       Household     @relation(fields: [householdId], references: [id])
+  transactions    Transaction[]
+}
+
+// ============ RECURRING BILLS ============
+
+model RecurringBill {
+  id               Int                   @id @default(autoincrement())
+  householdId      Int
+  name             String // "Rent" / "Hydro"
+  category         String // "housing" | "utilities" | "insurance" | "subscription"
+  amount           Decimal               @db.Decimal(10, 2)
+  amountVariable   Boolean               @default(false) // true if avg amount (hydro etc)
+  frequency        String // "monthly" | "biweekly" | "quarterly" | "annual"
+  dueDayOfMonth    Int? // 1-31 for monthly
+  nextDueDate      DateTime              @db.Date
+  autopay          Boolean               @default(true)
+  paymentAccountId Int? // which account it comes from
+  paymentMethod    String? // "TD Chq ····8842"
+  isActive         Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  household        Household             @relation(fields: [householdId], references: [id])
+  transactions     Transaction[]
+  paycheckOverride BillPaycheckOverride?
+}
+
+// BillPaycheckOverride — Phase 3 pinning feature, table shipped in Phase 1
+// so the Phase 3 change is code-only (no migration). See BUILD_PLAN §6.
+//
+// Semantics: if a row exists for a given billId, the user has manually pinned
+// the bill to `paycheckDate`. Otherwise, auto-assignment applies.
+model BillPaycheckOverride {
+  id           Int           @id @default(autoincrement())
+  billId       Int           @unique // one override per bill
+  paycheckDate DateTime      @db.Date
+  pinnedAt     DateTime      @default(now())
+  bill         RecurringBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+}
+
+// ============ BUDGETS ============
+
+model Budget {
+  id            Int           @id @default(autoincrement())
+  householdId   Int
+  name          String // "Groceries" / "Gas"
+  category      String // matches Transaction.category values
+  amount        Decimal       @db.Decimal(10, 2)
+  cycleType     String        @default("paycheck") // "paycheck" | "monthly" | "biweekly"
+  cycleStartDay Int? // for monthly: day of month. for paycheck: see IncomeSource
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  household     Household     @relation(fields: [householdId], references: [id])
+  transactions  Transaction[]
+}
+
+// ============ INCOME ============
+
+model IncomeSource {
+  id               Int           @id @default(autoincrement())
+  householdId      Int
+  userId           Int // who earns it
+  name             String // "Mojo Food Group"
+  type             String // "salary" | "self_employed" | "bonus" | "other"
+  amount           Decimal       @db.Decimal(12, 2)
+  amountVariable   Boolean       @default(false)
+  frequency        String // "biweekly" | "monthly" | "annual" | "variable"
+  payDayOfWeek     Int? // 0-6 (0=Sunday) for biweekly
+  nextPayDate      DateTime?     @db.Date
+  depositAccountId Int?
+  isPrimary        Boolean       @default(false)
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  household        Household     @relation(fields: [householdId], references: [id])
+  user             User          @relation(fields: [userId], references: [id])
+  transactions     Transaction[]
+}
+
+// ============ AD-HOC EXPENSES ============
+
+model AdHocExpense {
+  id                   Int           @id @default(autoincrement())
+  householdId          Int
+  name                 String // "Connor's wedding hotel"
+  description          String? // freeform notes
+  category             String // "travel" | "gifts" | "auto" | "medical" | "home" | "other"
+  amount               Decimal       @db.Decimal(10, 2)
+  dueDate              DateTime      @db.Date
+  paymentAccountId     Int?
+  status               String        @default("planned") // "planned" | "funded" | "paid" | "cancelled"
+  assignedPaycheckDate DateTime?     @db.Date // which paycheck covers this
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  household            Household     @relation(fields: [householdId], references: [id])
+  transactions         Transaction[]
+}
+
+// ============ NET WORTH SNAPSHOTS ============
+
+model NetWorthSnapshot {
+  id               Int       @id @default(autoincrement())
+  householdId      Int
+  snapshotDate     DateTime  @unique @db.Date
+  totalAssets      Decimal   @db.Decimal(14, 2)
+  totalLiabilities Decimal   @db.Decimal(14, 2)
+  netWorth         Decimal   @db.Decimal(14, 2)
+  breakdown        Json // { cash: 24812, investments: 62430, crypto: 8200, ... }
+  createdAt        DateTime  @default(now())
+  household        Household @relation(fields: [householdId], references: [id])
+
+  @@index([householdId, snapshotDate])
+}
+
+// ============ AGENT / CHAT ============
+
+model AgentMessage {
+  id             Int       @id @default(autoincrement())
+  householdId    Int
+  userId         Int?
+  role           String // "user" | "assistant" | "system"
+  content        String    @db.Text
+  metadata       Json? // tool calls, citations, etc
+  conversationId String // groups messages into conversations
+  createdAt      DateTime  @default(now())
+  household      Household @relation(fields: [householdId], references: [id])
+
+  @@index([conversationId, createdAt])
+}
+
+// ============ AUDIT / SYNC LOG ============
+
+model SyncLog {
+  id             Int       @id @default(autoincrement())
+  source         String // "plaid" | "llm_categorize" | "email_parser"
+  status         String // "success" | "partial" | "failed"
+  itemsProcessed Int       @default(0)
+  errorMessage   String?   @db.Text
+  metadata       Json?
+  startedAt      DateTime
+  completedAt    DateTime?
+}

@@ -1,0 +1,21 @@
+# Railway service configuration for apps/api.
+#
+# This file lives at the repo ROOT (not apps/api). Railway's Root Directory
+# setting on the service must be left empty/unset so the build context
+# includes the whole pnpm workspace (pnpm-lock.yaml, pnpm-workspace.yaml,
+# packages/db/, packages/shared-types/).
+#
+# We use a Dockerfile rather than Nixpacks/Railpack for monorepo
+# determinism — auto-detection on pnpm workspaces is brittle.
+#
+# The managed Postgres plugin injects DATABASE_URL automatically.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

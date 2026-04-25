@@ -1,0 +1,23 @@
+**/node_modules
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.vscode
+.idea
+
+design/mockups
+*.md
+!CHANGELOG.md
+!README.md
+
+# Note: apps/web is intentionally NOT excluded. The Dockerfile copies
+# apps/web/package.json so pnpm install --frozen-lockfile can resolve
+# the full workspace graph; ignoring the directory breaks that COPY.
+# We don't COPY any apps/web sources, so the runtime image stays small.

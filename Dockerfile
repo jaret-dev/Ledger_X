@@ -12,6 +12,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Prisma needs OpenSSL to talk to Postgres. Alpine doesn't ship it by
+# default, which triggers "libssl/openssl version" warnings and can
+# break migrate/query engines on some hosts. Install it explicitly.
+RUN apk add --no-cache openssl
+
 # pnpm via corepack — pinned to match packageManager in package.json
 RUN corepack enable && corepack prepare pnpm@9.12.3 --activate
 

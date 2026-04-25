@@ -20,7 +20,11 @@ dockerfilePath = "Dockerfile"
 # when nothing's pending, the seed uses findFirst-then-update-or-create.
 # DISABLE the seed step at the start of Phase 3 when mutations land —
 # user-edited rows would otherwise reset on the next deploy.
-preDeployCommand = "pnpm --filter @ledger/db exec prisma migrate deploy && pnpm --filter @ledger/db seed"
+#
+# The chain is wrapped in a single npm script so `&&` runs inside pnpm's
+# shell — Railway's preDeployCommand exec's the first binary without a
+# shell wrapper, so a top-level `&& ...` would silently drop the seed.
+preDeployCommand = "pnpm --filter @ledger/db release"
 healthcheckPath = "/api/health"
 # Generous window — first boot on a cold Railway replica can be 30-60s after
 # migrations are done. 300s is plenty and doesn't affect ongoing ops.

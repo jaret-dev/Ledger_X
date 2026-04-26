@@ -23,11 +23,31 @@ import { PrismaClient, Prisma } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const HOUSEHOLD_ID = 1;
-const TODAY = dateOnly("2026-04-25");
+// `seedTodayUtc()` is computed at run time rather than module load so the
+// snapshot, ad-hoc dueDates, paydates etc. always anchor to "right now".
+// Each run accumulates a NetWorthSnapshot for that day — over time this
+// builds the trend the Sidebar's ↗/→/↘ arrow reads.
 
 /** YYYY-MM-DD → Date at UTC midnight. Prisma `@db.Date` ignores the time. */
 function dateOnly(iso: string): Date {
   return new Date(`${iso}T00:00:00Z`);
+}
+
+/** Today as a UTC-midnight Date (re-evaluated per call so fixtures
+ *  stay anchored to the run date, not module load). */
+function seedTodayUtc(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/** Next occurrence of `targetDow` (0=Sun … 6=Sat) strictly after `from`,
+ *  formatted as YYYY-MM-DD. Used to keep biweekly paydates relative. */
+function nextWeekday(from: Date, targetDow: number): string {
+  const cursor = new Date(from);
+  do {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  } while (cursor.getUTCDay() !== targetDow);
+  return cursor.toISOString().slice(0, 10);
 }
 
 /**
@@ -269,6 +289,14 @@ async function seed() {
 
   const tdChequingId = accountByNickname.get("TD Chequing")!;
 
+  // Compute paydates relative to "today" so the current paycheck cycle
+  // always spans `today` regardless of when the seed runs. Otherwise
+  // hardcoded dates would slip into the past and the Budgets page
+  // would show $0 spent in the wrong cycle.
+  const jaretNextPay = nextWeekday(seedTodayUtc(), 5); // next Friday
+  const sarahNextPay = nextWeekday(seedTodayUtc(), 3); // next Wednesday
+  const decemberBonus = `${seedTodayUtc().getUTCFullYear()}-12-15`;
+
   const incomeSpecs: Array<{
     name: string;
     userId: number;
@@ -280,10 +308,10 @@ async function seed() {
     nextPayDate?: string;
     isPrimary?: boolean;
   }> = [
-    { name: "Mojo Food Group", userId: jaret.id, type: "salary", amount: 3840.0, frequency: "biweekly", payDayOfWeek: 5, nextPayDate: "2026-05-08", isPrimary: true },
-    { name: "GAP Inc.", userId: sarah.id, type: "salary", amount: 2210.0, frequency: "biweekly", payDayOfWeek: 3, nextPayDate: "2026-04-29" },
+    { name: "Mojo Food Group", userId: jaret.id, type: "salary", amount: 3840.0, frequency: "biweekly", payDayOfWeek: 5, nextPayDate: jaretNextPay, isPrimary: true },
+    { name: "GAP Inc.", userId: sarah.id, type: "salary", amount: 2210.0, frequency: "biweekly", payDayOfWeek: 3, nextPayDate: sarahNextPay },
     { name: "TGCS Co.", userId: jaret.id, type: "self_employed", amount: 775.0, amountVariable: true, frequency: "monthly" },
-    { name: "Annual bonus · Mojo", userId: jaret.id, type: "bonus", amount: 9200.0, amountVariable: true, frequency: "annual", nextPayDate: "2026-12-15" },
+    { name: "Annual bonus · Mojo", userId: jaret.id, type: "bonus", amount: 9200.0, amountVariable: true, frequency: "annual", nextPayDate: decemberBonus },
   ];
 
   const incomeByName = new Map<string, number>();
@@ -310,21 +338,27 @@ async function seed() {
   // Ad-hoc expenses (3)
   // ────────────────────────────────────────────────────────────
 
+  // Ad-hoc due dates kept relative to today so they don't slip into
+  // the past as time passes. Bucketing on the AdHoc page assumes
+  // "this cycle / next 30d / beyond 60d" so we spread accordingly.
+  const today = seedTodayUtc();
   const adhocSpecs: Array<{
     name: string;
     description: string;
     category: string;
     amount: number;
-    dueDate: string;
+    daysFromNow: number;
     status: string;
   }> = [
-    { name: "Connor's wedding · hotel", description: "Hilton Niagara · two nights · Sarah + me", category: "travel", amount: 320.0, dueDate: "2026-05-10", status: "funded" },
-    { name: "Mom's birthday gift", description: "Still deciding — set aside the cash anyway", category: "gifts", amount: 150.0, dueDate: "2026-05-24", status: "planned" },
-    { name: "Brake pads · Civic", description: "Quoted at Dave's shop · includes rotor turn", category: "auto", amount: 480.0, dueDate: "2026-06-05", status: "planned" },
+    { name: "Connor's wedding · hotel", description: "Hilton Niagara · two nights · Sarah + me", category: "travel", amount: 320.0, daysFromNow: 12, status: "funded" },
+    { name: "Mom's birthday gift", description: "Still deciding — set aside the cash anyway", category: "gifts", amount: 150.0, daysFromNow: 28, status: "planned" },
+    { name: "Brake pads · Civic", description: "Quoted at Dave's shop · includes rotor turn", category: "auto", amount: 480.0, daysFromNow: 65, status: "planned" },
   ];
 
   const adhocByName = new Map<string, number>();
   for (const spec of adhocSpecs) {
+    const dueDate = new Date(today);
+    dueDate.setUTCDate(dueDate.getUTCDate() + spec.daysFromNow);
     const adhoc = await upsertBy(
       prisma.adHocExpense,
       { householdId: household.id, name: spec.name },
@@ -332,7 +366,7 @@ async function seed() {
         description: spec.description,
         category: spec.category,
         amount: new Prisma.Decimal(spec.amount),
-        dueDate: dateOnly(spec.dueDate),
+        dueDate,
         paymentAccountId: tdChequingId,
         status: spec.status,
       },
@@ -345,7 +379,7 @@ async function seed() {
   // ────────────────────────────────────────────────────────────
 
   await prisma.netWorthSnapshot.upsert({
-    where: { snapshotDate: TODAY },
+    where: { snapshotDate: seedTodayUtc() },
     update: {
       totalAssets: new Prisma.Decimal(87242.0),
       totalLiabilities: new Prisma.Decimal(48320.0),
@@ -358,7 +392,7 @@ async function seed() {
     },
     create: {
       householdId: household.id,
-      snapshotDate: TODAY,
+      snapshotDate: seedTodayUtc(),
       totalAssets: new Prisma.Decimal(87242.0),
       totalLiabilities: new Prisma.Decimal(48320.0),
       netWorth: new Prisma.Decimal(38922.0),
@@ -374,10 +408,15 @@ async function seed() {
   // Representative transactions (sample from transactions.html)
   // Positive = outflow, negative = inflow (Plaid convention).
   // plaidTransactionId uses "mock-" prefix so real Plaid syncs never collide.
+  //
+  // Dates are RELATIVE to today (`daysAgo`) rather than hardcoded so the
+  // seeded transactions always land in the current paycheck cycle, no
+  // matter when the seed runs. Otherwise the Budgets page would show
+  // $0 spent the moment the cycle rolls past the hardcoded dates.
   // ────────────────────────────────────────────────────────────
 
   const txnSpecs: Array<{
-    date: string;
+    daysAgo: number;
     amount: number;
     merchant: string;
     raw: string;
@@ -385,28 +424,43 @@ async function seed() {
     accountNickname: string;
     incomeName?: string;
   }> = [
-    { date: "2026-04-22", amount: 62.4, merchant: "Loblaws", raw: "LOBLAWS #1234 TORONTO", category: "groceries", accountNickname: "Amex Cobalt" },
-    { date: "2026-04-22", amount: 7.8, merchant: "Starbucks", raw: "STARBUCKS QUEEN E TORONTO", category: "dining", accountNickname: "Amex Cobalt" },
-    { date: "2026-04-22", amount: 14.0, merchant: "Esso", raw: "ESSO 5512 TORONTO", category: "gas", accountNickname: "TD Visa" },
-    { date: "2026-04-21", amount: 142.3, merchant: "Home Depot", raw: "THE HOME DEPOT #7011", category: "household", accountNickname: "TD Visa" },
-    { date: "2026-04-21", amount: 48.1, merchant: "Metro", raw: "METRO #142 LESLIEVILLE", category: "groceries", accountNickname: "Amex Cobalt" },
-    { date: "2026-04-21", amount: 8.4, merchant: "Tim Hortons", raw: "TIM HORTONS #2298", category: "dining", accountNickname: "Amex Cobalt" },
-    { date: "2026-04-21", amount: 16.6, merchant: "LCBO", raw: "LCBO #432 QUEEN ST E", category: "entertainment", accountNickname: "TD Visa" },
-    { date: "2026-04-20", amount: 89.5, merchant: "Bell Canada", raw: "BELL CANADA AUTOPAY", category: "subscription", accountNickname: "TD Chequing" },
-    { date: "2026-04-20", amount: 42.15, merchant: "Shoppers Drug Mart", raw: "SHOPPERS DRUG MART #1190", category: "household", accountNickname: "Amex Cobalt" },
-    { date: "2026-04-20", amount: 22.6, merchant: "Uber", raw: "UBER *TRIP HELP.UBER.COM", category: "transport", accountNickname: "Amex Cobalt" },
-    { date: "2026-04-17", amount: -3840.0, merchant: "Mojo Food Group", raw: "MOJO FOOD GROUP PAYROLL", category: "income", accountNickname: "TD Chequing", incomeName: "Mojo Food Group" },
+    { daysAgo: 1, amount: 62.4, merchant: "Loblaws", raw: "LOBLAWS #1234 TORONTO", category: "groceries", accountNickname: "Amex Cobalt" },
+    { daysAgo: 1, amount: 7.8, merchant: "Starbucks", raw: "STARBUCKS QUEEN E TORONTO", category: "dining", accountNickname: "Amex Cobalt" },
+    { daysAgo: 1, amount: 14.0, merchant: "Esso", raw: "ESSO 5512 TORONTO", category: "gas", accountNickname: "TD Visa" },
+    { daysAgo: 2, amount: 142.3, merchant: "Home Depot", raw: "THE HOME DEPOT #7011", category: "household", accountNickname: "TD Visa" },
+    { daysAgo: 2, amount: 48.1, merchant: "Metro", raw: "METRO #142 LESLIEVILLE", category: "groceries", accountNickname: "Amex Cobalt" },
+    { daysAgo: 2, amount: 8.4, merchant: "Tim Hortons", raw: "TIM HORTONS #2298", category: "dining", accountNickname: "Amex Cobalt" },
+    { daysAgo: 2, amount: 16.6, merchant: "LCBO", raw: "LCBO #432 QUEEN ST E", category: "entertainment", accountNickname: "TD Visa" },
+    { daysAgo: 3, amount: 89.5, merchant: "Bell Canada", raw: "BELL CANADA AUTOPAY", category: "subscription", accountNickname: "TD Chequing" },
+    { daysAgo: 3, amount: 42.15, merchant: "Shoppers Drug Mart", raw: "SHOPPERS DRUG MART #1190", category: "household", accountNickname: "Amex Cobalt" },
+    { daysAgo: 3, amount: 22.6, merchant: "Uber", raw: "UBER *TRIP HELP.UBER.COM", category: "transport", accountNickname: "Amex Cobalt" },
+    { daysAgo: 6, amount: -3840.0, merchant: "Mojo Food Group", raw: "MOJO FOOD GROUP PAYROLL", category: "income", accountNickname: "TD Chequing", incomeName: "Mojo Food Group" },
   ];
+
+  // Compute today's UTC date once so every txn shares the same baseline
+  // (otherwise a slow seed could cross a midnight boundary mid-loop).
+  const seedToday = new Date();
+  const todayUtc = new Date(
+    Date.UTC(seedToday.getUTCFullYear(), seedToday.getUTCMonth(), seedToday.getUTCDate()),
+  );
 
   for (const [idx, t] of txnSpecs.entries()) {
     const accountId = accountByNickname.get(t.accountNickname);
     if (!accountId) throw new Error(`Unknown account nickname in transaction: ${t.accountNickname}`);
 
-    const plaidTransactionId = `mock-${t.date}-${idx}-${t.merchant.toLowerCase().replace(/\s+/g, "-")}`;
+    const txnDate = new Date(todayUtc);
+    txnDate.setUTCDate(txnDate.getUTCDate() - t.daysAgo);
+    const isoDate = txnDate.toISOString().slice(0, 10);
+
+    // plaidTransactionId is keyed by merchant + daysAgo (stable across
+    // seed runs on a given calendar day) rather than the absolute date,
+    // so re-seeding tomorrow updates yesterday's row in place.
+    const plaidTransactionId = `mock-d${t.daysAgo}-${idx}-${t.merchant.toLowerCase().replace(/\s+/g, "-")}`;
 
     await prisma.transaction.upsert({
       where: { plaidTransactionId },
       update: {
+        date: txnDate,
         amount: new Prisma.Decimal(t.amount),
         merchantName: t.merchant,
         merchantRaw: t.raw,
@@ -416,7 +470,7 @@ async function seed() {
         householdId: household.id,
         accountId,
         plaidTransactionId,
-        date: dateOnly(t.date),
+        date: txnDate,
         amount: new Prisma.Decimal(t.amount),
         merchantName: t.merchant,
         merchantRaw: t.raw,
@@ -428,6 +482,7 @@ async function seed() {
         isHidden: false,
       },
     });
+    void isoDate; // useful when debugging
   }
 
   // ────────────────────────────────────────────────────────────

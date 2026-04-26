@@ -1,4 +1,4 @@
-import express, { type Express, Router } from "express";
+import express, { type Express, Router, type RequestHandler } from "express";
 import cors from "cors";
 import { pinoHttp } from "pino-http";
 import { env, isOriginAllowed } from "./lib/env.js";
@@ -19,21 +19,43 @@ import { networthRouter } from "./routes/networth.js";
 import { cashflowRouter } from "./routes/cashflow.js";
 import { accountsRouter } from "./routes/accounts.js";
 
+/**
+ * Reject disallowed CORS origins with a clear 403 BEFORE the cors()
+ * middleware ever runs. Two reasons:
+ *   1. Previous behaviour passed an Error to cors's callback, which
+ *      cascaded through the errorHandler and returned a misleading
+ *      `{"error":"internal_error"}` 500. Now the user (or future me
+ *      reading the log) immediately sees `origin_not_allowed`.
+ *   2. cors() then handles only allowed origins, which simplifies its
+ *      job — pass the parsed allowlist directly as a (string|RegExp)[].
+ *
+ * Same-origin and curl-style requests have no Origin header — those
+ * pass straight through.
+ */
+const enforceCorsOrigin: RequestHandler = (req, res, next) => {
+  const origin = req.header("origin");
+  if (!origin) return next();
+  if (isOriginAllowed(origin, env.CORS_ORIGIN)) return next();
+  logger.warn({ origin, allowlist: env.CORS_ORIGIN }, "CORS rejection");
+  res.status(403).json({
+    error: "origin_not_allowed",
+    origin,
+    hint: "Add this origin (or a wildcard like https://your-domain-*.vercel.app) to the API's CORS_ORIGIN env var.",
+  });
+};
+
 // Factory so tests can instantiate without binding a port.
 export function createServer(): Express {
   const app = express();
 
   app.use(pinoHttp({ logger }));
+  app.use(enforceCorsOrigin);
   app.use(
     cors({
-      // Function form so we can match wildcard / regex entries from
-      // CORS_ORIGIN (parsed in env.ts) — Vercel preview URLs change per PR.
-      // Same-origin requests have no Origin header — accept those too.
-      origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        if (isOriginAllowed(origin, env.CORS_ORIGIN)) return callback(null, true);
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
-      },
+      // env.CORS_ORIGIN is already parsed into (string | RegExp)[]; cors
+      // accepts that shape natively. enforceCorsOrigin above has already
+      // rejected anything that won't match here.
+      origin: env.CORS_ORIGIN,
       credentials: true,
     }),
   );

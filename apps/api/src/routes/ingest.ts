@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { Prisma, prisma } from "@ledger/db";
 import {
   IngestAccountsResponse,
@@ -17,9 +18,10 @@ import { logger } from "../lib/logger.js";
 export const ingestRouter: Router = Router();
 
 // ──────────── GET /api/ingest/accounts ────────────
-// Agent calls this to learn which accounts to sync. Returns access
-// tokens + cursors so the agent can call Plaid directly and resume
-// from the right point.
+// Agent calls this to learn which accounts to sync OR which to bootstrap.
+// Returns ALL non-manual accounts (linked + unlinked) so the script can:
+//   - filter to `plaidAccessToken !== null` for the sync flow
+//   - pick the first unlinked one for the sandbox bootstrap flow
 
 ingestRouter.get("/accounts", async (_req, res, next) => {
   try {
@@ -27,7 +29,6 @@ ingestRouter.get("/accounts", async (_req, res, next) => {
       where: {
         isActive: true,
         isManual: false,
-        plaidAccessToken: { not: null },
       },
       select: {
         id: true,
@@ -44,6 +45,61 @@ ingestRouter.get("/accounts", async (_req, res, next) => {
       orderBy: { id: "asc" },
     });
     res.json(IngestAccountsResponse.parse({ accounts }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ──────────── POST /api/ingest/accounts/:id/plaid-link ────────────
+// One-time call per account when bootstrapping a Plaid item. The agent
+// runs Plaid's sandbox public-token-create + exchange dance, gets back
+// access_token + item_id + the per-account ids from /accounts/get, then
+// POSTs here to attach the linkage to one of the seeded Account rows.
+//
+// Subsequent /api/ingest/transactions calls match accountPlaidId back to
+// this row and write transactions against it.
+
+ingestRouter.post("/accounts/:id/plaid-link", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ error: "invalid_account_id" });
+      return;
+    }
+
+    const Body = z.object({
+      plaidAccessToken: z.string().min(1),
+      plaidItemId: z.string().min(1),
+      plaidAccountId: z.string().min(1),
+    });
+    const input = Body.parse(req.body);
+
+    const existing = await prisma.account.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ error: "account_not_found", id });
+      return;
+    }
+    if (existing.isManual) {
+      res.status(400).json({
+        error: "account_is_manual",
+        message: "Manual-entry accounts (e.g. OSAP) can't be Plaid-linked",
+      });
+      return;
+    }
+
+    const updated = await prisma.account.update({
+      where: { id },
+      data: {
+        plaidAccessToken: input.plaidAccessToken,
+        plaidItemId: input.plaidItemId,
+        plaidAccountId: input.plaidAccountId,
+        // Reset the cursor when re-linking; sync starts fresh.
+        plaidSyncCursor: null,
+        lastSyncedAt: null,
+      },
+      select: { id: true, nickname: true, plaidAccountId: true },
+    });
+    res.json(updated);
   } catch (err) {
     next(err);
   }

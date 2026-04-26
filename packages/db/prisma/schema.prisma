@@ -70,6 +70,9 @@ model Account {
   isActive         Boolean                  @default(true)
   isManual         Boolean                  @default(false) // not synced via Plaid
   lastSyncedAt     DateTime?
+  // Plaid's transactions/sync cursor, advanced atomically with each
+  // successful POST /api/ingest/transactions. Null = first sync ever.
+  plaidSyncCursor  String?
   createdAt        DateTime                 @default(now())
   household        Household                @relation(fields: [householdId], references: [id])
   transactions     Transaction[]

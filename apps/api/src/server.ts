@@ -5,7 +5,9 @@ import { env, isOriginAllowed } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { householdAuth } from "./middleware/householdAuth.js";
+import { agentAuth } from "./middleware/agentAuth.js";
 import { healthRouter } from "./routes/health.js";
+import { ingestRouter } from "./routes/ingest.js";
 import { householdRouter } from "./routes/household.js";
 import { sidebarRouter } from "./routes/sidebar.js";
 import { overviewRouter } from "./routes/overview.js";
@@ -64,9 +66,18 @@ export function createServer(): Express {
   // Health is unauthenticated (Railway healthcheck has no header).
   app.use("/api", healthRouter);
 
-  // All read endpoints sit behind the stub householdAuth middleware until
-  // Phase 5 wires Clerk. Order doesn't matter beyond that — each router's
-  // paths are unique.
+  // /api/ingest/* — agent-key auth. Mounted as a separate sub-tree so the
+  // OpenClaw Ledger agent never needs (and can never accidentally use)
+  // the user-facing x-household-id header. Distinct from householdAuth so
+  // rotating either secret never breaks the other.
+  const ingestRoot = Router();
+  ingestRoot.use(agentAuth);
+  ingestRoot.use("/", ingestRouter);
+  app.use("/api/ingest", ingestRoot);
+
+  // All read + mutation endpoints sit behind the stub householdAuth
+  // middleware until Phase 5 wires Clerk. Order doesn't matter beyond
+  // that — each router's paths are unique.
   const apiRouter = Router();
   apiRouter.use(householdAuth);
   apiRouter.use("/", householdRouter);

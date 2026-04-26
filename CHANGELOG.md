@@ -2,7 +2,60 @@
 
 All notable changes to Ledger are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows the build plan's phase numbering until we ship to production.
 
-## [Unreleased] — Phase 3: Writes + mutations
+## [0.4.0] — 2026-04-26 — Phase 4: OpenClaw Ledger agent (shipped)
+
+Closes Phase 4 of `BUILD_PLAN.md §7`. The Ledger agent now syncs from Plaid Sandbox automatically every hour, categorizes transactions through OpenClaw's gateway, and writes to production via authenticated ingest endpoints.
+
+**Live state after the first sync:**
+- 1 of 11 accounts (TD Chequing) Plaid-linked, cursor stored
+- 154 transactions in production: 9 from the seed, 144 from Plaid sandbox (5 months of historical data), 1 manually edited
+- All 144 Plaid transactions classified by Ledger SOUL via `model: openclaw/ledger` — no LLM provider keys touched the codebase
+
+### Added (this repo)
+
+- **5 ingest endpoints** under `/api/ingest/*`, all gated by a separate `x-agent-key` header (constant-time compared against `LEDGER_AGENT_KEY` env). Distinct sub-tree from user-facing `/api/*` so rotating either secret never breaks the other:
+  - `GET /api/ingest/accounts` — lists accounts (linked + unlinked) with tokens + cursors
+  - `POST /api/ingest/transactions` — atomic write of categorized transactions + cursor advance, idempotent on `plaidTransactionId`
+  - `POST /api/ingest/balances` — updates `Account.currentBalance` + writes `AccountBalanceSnapshot` row
+  - `POST /api/ingest/liabilities` — refreshes matching `Debt` row's APR, min payment, due day
+  - `POST /api/ingest/sync-log` — audit trail; the SyncLog table records every run with status, duration, errors
+- **`POST /api/ingest/accounts/:id/plaid-link`** — one-time bootstrap endpoint the agent calls after Plaid `/sandbox/public_token/create` + `/item/public_token/exchange` to attach Plaid linkage to a seeded `Account` row. Refuses to touch `isManual: true` accounts.
+- **`agentAuth` middleware** with constant-time key comparison + structured 401 (missing) / 403 (invalid) responses. 4 tests covering missing/wrong/valid key + cross-bleed guard verifying `x-agent-key` can't bypass `householdAuth` on user-facing routes.
+- **Schema:** `Account.plaidSyncCursor String?` column (migration `20260426125711_add_plaid_sync_cursor`). Holds Plaid's cursor per account; advanced atomically with each successful POST `/api/ingest/transactions`.
+- **`packages/shared-types/src/ingest.ts`** — Zod schemas + inferred TS types for every ingest request/response. Frozen contract the OpenClaw script targets.
+
+### Added (handoff to OpenClaw)
+
+- **`PHASE_4_OPENCLAW_HANDOFF.md`** at the repo root — 8-step spec doc the OpenClaw Claude Code agent executed against. Env vars, cron command, failure-mode table.
+- **`docs/ledger-plaid-sync.mjs`** — full ~280-line Node ESM source. Three modes: default sync, `--bootstrap` (one-time sandbox setup), `--status` (read-only diagnostic). Built-in fetch only — no Plaid SDK, no npm install.
+- **`docs/ledger-soul-addendum.md`** — `§LedgerX` section appended to Ledger's `SOUL.md` defining the categorization protocol (14 fixed categories, Toronto merchant shortcuts, confidence-threshold rule).
+
+### OpenClaw side (separate repo)
+
+Executed by the OpenClaw Claude Code agent against the handoff doc:
+- Script copied to `~/.openclaw/scripts/pulls/ledger-plaid-sync.mjs`
+- 6 env vars added to `~/.openclaw/.env` (`LEDGER_API_URL`, `LEDGER_AGENT_KEY`, `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV=sandbox`, `PLAID_COUNTRY_CODES=CA`); `OPENCLAW_GATEWAY_TOKEN` already present
+- `§LedgerX` section appended to `~/.openclaw/workspace/agents/ledger/SOUL.md`
+- Cron registered: `0 * * * *` America/Toronto, "LedgerX Plaid Sync (hourly during dev)". Will switch to `0 4 * * *` (BUILD_PLAN's nightly cadence) once stable
+
+### Architectural decisions
+
+- **No LLM provider keys anywhere.** Per OpenClaw's standing rule (top of `~/.openclaw/CLAUDE.md`), categorization routes through the local gateway at `http://localhost:18789/v1/chat/completions` authed by `OPENCLAW_GATEWAY_TOKEN`. The Anthropic key originally listed in BUILD_PLAN §11 for Phase 4 is now scrapped — Phase 6's Railway-hosted co-pilot chat is a separate problem (tunnel, proxy, or carve-out key — not solving today).
+- **Cursor advancement is atomic with transaction writes.** A failed POST `/api/ingest/transactions` doesn't advance the cursor, so the next sync re-pulls the same window. Idempotency on `plaidTransactionId` means re-runs produce `created: 0, updated: N` without duplicates.
+- **Manual category edits stick.** Transactions where `categorySource === "user"` or `"rule"` are never overwritten by agent re-categorization. Jaret's UI corrections survive nightly syncs forever.
+- **Plaid-managed account protection.** The mutation endpoints (`POST /api/accounts/manual`, `PATCH /api/accounts/:id`) refuse to touch any account where `isManual === false` — Plaid is the source of truth for those. Phase 7's Plaid Link UI will be the only way to add new linked accounts.
+
+### Fixed during deployment
+
+- Railway's GitHub webhook briefly failed to fire after a "Degraded Build Performance" incident, leaving production stuck on PR #3's container even though PRs #4-#6 had merged. Fixed via empty commit to `main` to push a fresh SHA past the webhook's last-seen state.
+
+### Known follow-ups for Phase 5+
+
+- Plaid sandbox returned ~5 months of historical data on first sync, inflating current-cycle Budget totals. Real production banks (Phase 7) won't have this artifact since Plaid only returns transactions from the link date forward.
+- Only TD Chequing is bootstrapped. Re-running `--bootstrap` adds the next unlinked account; deferring this until needed to avoid sandbox-data dilution across all accounts.
+- `GET /api/ingest/sync-log` doesn't exist yet (write-only audit). Phase 6's in-app health indicator will need it.
+
+## [0.3.0] — 2026-04-25 — Phase 3: Writes + mutations (shipped)
 
 Branch: `phase-3-mutations`. Closes Phase 3 of BUILD_PLAN.
 

@@ -64,21 +64,15 @@ export function createServer(): Express {
   );
   app.use(express.json({ limit: "1mb" }));
 
-  // Clerk middleware — populates req.auth from any Bearer token without
-  // gating yet. Per-route gating happens in clerkAuth (mounted on the
-  // protected sub-tree below). No-op when CLERK_SECRET_KEY is unset
-  // (dev/test); the per-route fallback handles that case.
-  if (env.CLERK_SECRET_KEY) {
-    app.use(clerkMiddleware({ secretKey: env.CLERK_SECRET_KEY }));
-  }
-
   // Health is unauthenticated (Railway healthcheck has no header).
+  // Mounted before any auth middleware so it never goes through Clerk
+  // or any token-extraction layer that could throw.
   app.use("/api", healthRouter);
 
   // /api/ingest/* — agent-key auth. Mounted as a separate sub-tree so the
   // OpenClaw Ledger agent never needs (and can never accidentally use)
-  // the user-facing x-household-id header. Distinct from householdAuth so
-  // rotating either secret never breaks the other.
+  // the user-facing Clerk JWT. Distinct from clerkAuth so rotating
+  // either secret never breaks the other.
   const ingestRoot = Router();
   ingestRoot.use(agentAuth);
   ingestRoot.use("/", ingestRouter);
@@ -90,7 +84,16 @@ export function createServer(): Express {
   // x-household-id header so the test suite + local-dev workflows keep
   // working. Order doesn't matter beyond that — each router's paths
   // are unique.
+  //
+  // clerkMiddleware is scoped to THIS sub-tree only (not global) — that
+  // way `/api/health` and `/api/ingest/*` never touch any Clerk code
+  // path. A misconfigured Clerk secret previously took down the
+  // healthcheck along with the rest of the API; this isolates the
+  // failure mode.
   const apiRouter = Router();
+  if (env.CLERK_SECRET_KEY) {
+    apiRouter.use(clerkMiddleware({ secretKey: env.CLERK_SECRET_KEY }));
+  }
   apiRouter.use(clerkAuth);
   apiRouter.use("/", householdRouter);
   apiRouter.use("/", sidebarRouter);

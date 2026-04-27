@@ -1,17 +1,22 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useAuth } from "@clerk/clerk-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "./Sidebar";
+import { setSessionTokenGetter } from "../api/client";
 
 /**
  * AppLayout — sidebar + main shell. Mirrors the mockup's body { display:
  * flex } + main { max-width: 1400px; padding: 32px 40px 60px } rules.
  *
  * Mobile (<900px): the sidebar is hidden by default and revealed as a
- * fixed overlay when the hamburger button is tapped. The button itself
- * is rendered at the top-left of `<main>` only on mobile, since on
- * desktop the sidebar is always visible.
+ * fixed overlay when the hamburger button is tapped.
+ *
+ * Phase 5: also wires Clerk's session token into the API client so every
+ * fetch carries a fresh bearer JWT.
  */
 export function AppLayout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  useClerkTokenBridge();
 
   return (
     <div className="flex min-h-screen bg-bg text-ink">
@@ -38,3 +43,27 @@ export function AppLayout({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/** Connect Clerk's `useAuth().getToken()` to the API client's token
+ *  getter. Runs once when AppLayout mounts inside a SignedIn route, and
+ *  invalidates React Query cache when the user changes (sign out / in
+ *  as different account) so we never serve another user's data. */
+function useClerkTokenBridge(): void {
+  const { isSignedIn, userId, getToken } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    setSessionTokenGetter(async () => {
+      if (!isSignedIn) return null;
+      try {
+        return await getToken();
+      } catch {
+        return null;
+      }
+    });
+    // When the signed-in identity flips, drop every cached query — they
+    // were fetched as the previous user and may show stale/wrong data.
+    queryClient.invalidateQueries();
+  }, [isSignedIn, userId, getToken, queryClient]);
+}
+

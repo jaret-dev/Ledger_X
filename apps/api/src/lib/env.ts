@@ -42,6 +42,10 @@ const EnvSchema = z.object({
     ),
   DATABASE_URL: z.string().url(),
   LEDGER_AGENT_KEY: z.string().min(1).default("dev-agent-key"),
+  // Phase 5+: required in production for Clerk JWT verification. Optional
+  // in dev/test so contributors can run the test suite without a Clerk
+  // account. See middleware/clerkAuth.ts for the runtime check.
+  CLERK_SECRET_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -1,10 +1,11 @@
 import express, { type Express, Router, type RequestHandler } from "express";
 import cors from "cors";
 import { pinoHttp } from "pino-http";
+import { clerkMiddleware } from "@clerk/express";
 import { env, isOriginAllowed } from "./lib/env.js";
 import { logger } from "./lib/logger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { householdAuth } from "./middleware/householdAuth.js";
+import { clerkAuth } from "./middleware/clerkAuth.js";
 import { agentAuth } from "./middleware/agentAuth.js";
 import { healthRouter } from "./routes/health.js";
 import { ingestRouter } from "./routes/ingest.js";
@@ -63,6 +64,14 @@ export function createServer(): Express {
   );
   app.use(express.json({ limit: "1mb" }));
 
+  // Clerk middleware — populates req.auth from any Bearer token without
+  // gating yet. Per-route gating happens in clerkAuth (mounted on the
+  // protected sub-tree below). No-op when CLERK_SECRET_KEY is unset
+  // (dev/test); the per-route fallback handles that case.
+  if (env.CLERK_SECRET_KEY) {
+    app.use(clerkMiddleware({ secretKey: env.CLERK_SECRET_KEY }));
+  }
+
   // Health is unauthenticated (Railway healthcheck has no header).
   app.use("/api", healthRouter);
 
@@ -75,11 +84,14 @@ export function createServer(): Express {
   ingestRoot.use("/", ingestRouter);
   app.use("/api/ingest", ingestRoot);
 
-  // All read + mutation endpoints sit behind the stub householdAuth
-  // middleware until Phase 5 wires Clerk. Order doesn't matter beyond
-  // that — each router's paths are unique.
+  // All read + mutation endpoints sit behind clerkAuth, which verifies
+  // the Clerk JWT and attaches req.user + req.household. In dev/test
+  // (no CLERK_SECRET_KEY), it transparently falls back to the legacy
+  // x-household-id header so the test suite + local-dev workflows keep
+  // working. Order doesn't matter beyond that — each router's paths
+  // are unique.
   const apiRouter = Router();
-  apiRouter.use(householdAuth);
+  apiRouter.use(clerkAuth);
   apiRouter.use("/", householdRouter);
   apiRouter.use("/", sidebarRouter);
   apiRouter.use("/", overviewRouter);

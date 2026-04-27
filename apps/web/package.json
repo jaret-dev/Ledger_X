@@ -13,6 +13,7 @@
     "test": "echo 'no tests in @ledger/web yet (Phase 1)' && exit 0"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.3",
     "@ledger/shared-types": "workspace:*",
     "@tanstack/react-query": "^5.62.7",
     "react": "^18.3.1",

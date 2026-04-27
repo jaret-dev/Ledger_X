@@ -2,6 +2,54 @@
 
 All notable changes to Ledger are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows the build plan's phase numbering until we ship to production.
 
+## [Unreleased] — Phase 5: Clerk auth + Sarah joins
+
+Branch: `phase-5-auth`. Closes Phase 5 of BUILD_PLAN §8.
+
+**Done-when checklist:**
+- [x] Clerk integrated on frontend (sign-in, sign-up, user menu)
+- [x] Backend validates Clerk JWT on every `/api/*` request (except `/api/health` and `/api/ingest/*`)
+- [x] User's `clerkId` mapped to `User.clerkId` via auto-link by email on first sign-in
+- [x] Sign-out works; session persists across reloads (Clerk handles this natively)
+- [~] Sarah invite flow — manual via Clerk dashboard for now (publicMetadata-driven auto-provisioning works server-side; in-app "Invite Sarah" button deferred to a polish commit)
+
+### Added
+
+- **`@clerk/express` on apps/api** — clerkMiddleware mounted globally, populates `req.auth` from Bearer tokens.
+- **`@clerk/clerk-react` on apps/web** — `<ClerkProvider>` wraps the app; sign-in / sign-up routes use Clerk's prebuilt components.
+- **`apps/api/src/middleware/clerkAuth.ts`** — replaces Phase 1-4's `householdAuth`. On each request:
+  1. Extracts `userId` from the Clerk-verified JWT.
+  2. Looks up `User` by `clerkId`. If missing, attempts auto-link by email (Clerk's user object → matches seeded `User.email`). On match, sets `User.clerkId` so subsequent requests are O(1).
+  3. If no email match, checks Clerk invitation `publicMetadata.householdId` for the invited-user provisioning path.
+  4. Otherwise rejects with 403 `user_not_provisioned` (no orphan accounts).
+  5. Attaches `req.user` and `req.household` so handlers stay unchanged.
+- **Dev/test fallback** — when `CLERK_SECRET_KEY` is unset, clerkAuth transparently accepts the legacy `x-household-id` header. Lets contributors run the test suite + local dev without a Clerk account.
+- **`/sign-in/*` + `/sign-up/*` routes** rendering Clerk's hosted-style components inline. Public; no auth required.
+- **`<SignedIn>` / `<SignedOut>` route guards** in `App.tsx` — unauthenticated users are bounced to `/sign-in`.
+- **`<UserButton>` in the Sidebar footer** — avatar + sign-out + manage-account popover, themed against the design system.
+- **Clerk session token bridge** — `setSessionTokenGetter()` connects React's `useAuth().getToken()` to the framework-agnostic API client. Every fetch carries a fresh JWT in the `Authorization: Bearer …` header. Cache invalidates on user change so we never serve another user's data.
+
+### Changed
+
+- **`apps/web/src/api/client.ts`** — sends `Authorization: Bearer <clerk-token>` instead of `x-household-id: 1`. Backwards-compatible: when no token is available, falls back to the stub header (matched by clerkAuth's dev mode).
+- **`apps/web/src/main.tsx`** — wraps app in `<ClerkProvider>` with sign-in/sign-up redirect URLs and crashes loud at boot if `VITE_CLERK_PUBLISHABLE_KEY` is unset.
+
+### Removed
+
+- **`apps/api/src/middleware/householdAuth.ts`** + its test file. Replaced by `clerkAuth.ts` which subsumes the dev fallback.
+
+### Decisions
+
+- **No LLM-key shenanigans for chat** — `ANTHROPIC_API_KEY` removed from `.env.example`; OpenClaw's gateway pattern (Phase 4) handles all LLM access. Phase 6's Railway-hosted co-pilot chat is a separate problem (tunnel / proxy / carve-out) deferred until then.
+- **Email-match auto-link for seeded users.** Jaret's seeded User has `email = "jaret@mojofoodgroup.com"`. When he signs in to Clerk with that email for the first time, the backend silently links his Clerk identity to the seed row instead of creating a duplicate User. Same for Sarah.
+- **Invite flow is via `publicMetadata`.** When Jaret invites Sarah from Clerk's dashboard with `publicMetadata: { householdId: 1, role: "member" }`, her first sign-in auto-creates her User row. No `/api/invite` endpoint needed yet — Clerk's dashboard sends the email + onboarding flow for free. In-app invite button can land in a polish PR.
+
+### Carried into Phase 6+
+
+- The "Invite Sarah" button in-app (calls Clerk's `invitations.create` server-side with the household metadata pre-filled).
+- Theming Clerk's prebuilt components to match the mockup palette beyond the basic color tokens currently passed.
+- Logging out clears React Query cache (already implemented; documenting).
+
 ## [0.4.0] — 2026-04-26 — Phase 4: OpenClaw Ledger agent (shipped)
 
 Closes Phase 4 of `BUILD_PLAN.md §7`. The Ledger agent now syncs from Plaid Sandbox automatically every hour, categorizes transactions through OpenClaw's gateway, and writes to production via authenticated ingest endpoints.

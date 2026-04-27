@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { UserButton } from "@clerk/clerk-react";
 import { useSidebar } from "../api/queries";
 
 /**
@@ -122,9 +123,20 @@ function NavSection({
 
 function Footer() {
   return (
-    <div className="mt-auto border-t border-line pt-4 text-[10px] text-ink-3">
-      <div className="font-mono uppercase tracking-widest">Phase 3</div>
-      <div className="mt-1 text-[11px]">Mutations · live</div>
+    <div className="mt-auto flex items-center justify-between gap-3 border-t border-line pt-4">
+      <div className="text-[10px] text-ink-3">
+        <div className="font-mono uppercase tracking-widest">Phase 5</div>
+        <div className="mt-1 text-[11px]">Auth · live</div>
+      </div>
+      <UserButton
+        appearance={{
+          elements: {
+            avatarBox: "w-8 h-8 rounded-full border border-line",
+            userButtonPopoverCard: "bg-card border border-line",
+            userButtonPopoverFooter: "hidden",
+          },
+        }}
+      />
     </div>
   );
 }

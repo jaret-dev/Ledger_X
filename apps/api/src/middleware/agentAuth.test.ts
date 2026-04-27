@@ -4,8 +4,19 @@ import request from "supertest";
 vi.mock("@ledger/db", () => ({
   prisma: {
     $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
-    household: { findUnique: vi.fn() },
-    user: { findMany: vi.fn().mockResolvedValue([]) },
+    household: {
+      findUnique: vi.fn().mockResolvedValue({ id: 1, name: "Jaret & Sarah" }),
+    },
+    user: {
+      findFirst: vi.fn().mockResolvedValue({
+        id: 1,
+        clerkId: null,
+        email: "jaret@mojofoodgroup.com",
+        name: "Jaret",
+        role: "primary",
+      }),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     account: { findMany: vi.fn().mockResolvedValue([]) },
   },
   Prisma: {},
@@ -45,10 +56,12 @@ describe("agentAuth middleware", () => {
 
   it("does NOT bleed agent auth into the user-facing /api/* routes", async () => {
     const app = createServer();
-    // Sending the agent key to /api/household should NOT bypass householdAuth
+    // Sending the agent key to /api/household should NOT pass clerkAuth
+    // (which gates the user-facing tree). In dev/test, clerkAuth falls
+    // back to x-household-id; the agent key is irrelevant there.
     const res = await request(app)
       .get("/api/household")
       .set("x-agent-key", "dev-agent-key");
-    expect(res.status).toBe(401); // still requires x-household-id
+    expect(res.status).toBe(401); // missing_household_id (dev fallback)
   });
 });

@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.9",
     "@ledger/db": "workspace:*",
     "@ledger/shared-types": "workspace:*",
     "cors": "^2.8.5",

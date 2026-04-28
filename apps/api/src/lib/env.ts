@@ -42,10 +42,14 @@ const EnvSchema = z.object({
     ),
   DATABASE_URL: z.string().url(),
   LEDGER_AGENT_KEY: z.string().min(1).default("dev-agent-key"),
-  // Phase 5+: required in production for Clerk JWT verification. Optional
-  // in dev/test so contributors can run the test suite without a Clerk
-  // account. See middleware/clerkAuth.ts for the runtime check.
+  // Phase 5+: BOTH keys required in production for Clerk JWT verification.
+  // - secretKey: lets the backend call Clerk's API (e.g. users.getUser)
+  // - publishableKey: encodes the Clerk instance's frontend domain that
+  //   issues the tokens; backend uses it to know what to verify against
+  // Both optional in dev/test so contributors can run the test suite
+  // without a Clerk account; clerkAuth's stub fallback covers that case.
   CLERK_SECRET_KEY: z.string().min(1).optional(),
+  CLERK_PUBLISHABLE_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

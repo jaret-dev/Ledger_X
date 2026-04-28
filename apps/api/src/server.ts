@@ -91,8 +91,23 @@ export function createServer(): Express {
   // healthcheck along with the rest of the API; this isolates the
   // failure mode.
   const apiRouter = Router();
-  if (env.CLERK_SECRET_KEY) {
-    apiRouter.use(clerkMiddleware({ secretKey: env.CLERK_SECRET_KEY }));
+  if (env.CLERK_SECRET_KEY && env.CLERK_PUBLISHABLE_KEY) {
+    // Both keys are required: secretKey for backend calls, publishableKey
+    // for JWT verification (encodes the Clerk instance's frontend domain).
+    apiRouter.use(
+      clerkMiddleware({
+        secretKey: env.CLERK_SECRET_KEY,
+        publishableKey: env.CLERK_PUBLISHABLE_KEY,
+      }),
+    );
+  } else if (env.CLERK_SECRET_KEY || env.CLERK_PUBLISHABLE_KEY) {
+    // Half-configured Clerk is a configuration bug — better to fail loud
+    // at boot than silently serve every request with an "unhandled error"
+    // 500 from the verification path.
+    throw new Error(
+      "Clerk requires BOTH CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY env vars. " +
+        "Set both, or unset both to use the dev/test stub fallback.",
+    );
   }
   apiRouter.use(clerkAuth);
   apiRouter.use("/", householdRouter);
